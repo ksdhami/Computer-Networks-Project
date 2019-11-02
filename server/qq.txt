@@ -1,0 +1,13 @@
+You're 3rd place right now in a race. What place are you in when you pass the person in 2nd place?
+a) 1st
+b) 2nd
+c) 3rd
+d) None of the above
+Ans: b
+
+What year was the 2010 Vancouver Winter Olympics?
+a) 2008
+b) 2009
+c) 2010
+d) 2011
+Ans: c
