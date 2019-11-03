@@ -14,6 +14,11 @@
 #include <errno.h>
 #include <stdio.h>
 #include <fstream>
+#include "Quiz.h"
+#include "Question.h"
+
+// #define QUESTIONFILE "questions.txt"
+#define QUESTIONFILE "qq.txt"
 
 using namespace std;
 
@@ -40,10 +45,13 @@ struct sockaddr_in serverAddrUDP; // address of the UDP server
 bool unknownCommandFlag = false;
 string unknownCommand;
 
+Quiz quiz;
+
 void initServerTCP(int &, int port);
 void processSockets(fd_set);
 void sendDataTCP(int, char[], int);
 void receiveDataTCP(int, char[], int &);
+void readQuestionFile();
 
 int main(int argc, char *argv[])
 {
@@ -67,6 +75,9 @@ int main(int argc, char *argv[])
     socklen_t size = sizeof(clientAddr);
 
     bool TCPInc = false;
+
+    // read file containing questions
+    readQuestionFile();
 
     // Run the server until a "terminate" command is received)
     while (!terminated)
@@ -127,6 +138,67 @@ int main(int argc, char *argv[])
 
     // Close the server sockets
     close(serverSockTCP);
+}
+
+void readQuestionFile()
+{
+    string line;      // line from file
+    string qQuestion; // question to add
+    string qChoiceA;  // choice A to add
+    string qChoiceB;  // choice B to add
+    string qChoiceC;  // choice C to add
+    string qChoiceD;  // choice D to add
+    char qAnswer;     // answer to add
+
+    ifstream fin(QUESTIONFILE, ios::in);
+
+    // file not found error
+    if (!fin)
+    {
+        cerr << "error: open file for input failed!" << endl;
+    }
+
+    while (getline(fin, line))
+    {
+        // check first character of file to determine what it is
+        // could be more efficient way to format file and do this step; also means changing question class
+        switch (line[0])
+        {
+        case '?':
+            qQuestion = line.substr(1);
+            // cout << "Line: " << line << " Question: " << qQuestion << endl;
+            break;
+        case '1':
+            qChoiceA = line.substr(1);
+            // cout << "Line: " << line << " Option 1: " << qChoiceA << endl;
+            break;
+        case '2':
+            qChoiceB = line.substr(1);
+            // cout << "Line: " << line << " Option 2: " << qChoiceB << endl;
+            break;
+        case '3':
+            qChoiceC = line.substr(1);
+            // cout << "Line: " << line << " Option 3: " << qChoiceC << endl;
+            break;
+        case '4':
+            qChoiceD = line.substr(1);
+            // cout << "Line: " << line << " Option 4: " << qChoiceD << endl;
+            break;
+        case '!':
+            qAnswer = line.back();
+            // cout << "Line: " << line << " Answer: " << qAnswer << endl;
+            break;
+        default:
+            // cerr << "New Question\n" << endl;
+            // create question object
+            Question ques(qQuestion, qChoiceA, qChoiceB, qChoiceC, qChoiceD, qAnswer);
+            // cout << "Repeat Question Command Check \n" << ques.getQuestionsAndChoicesString() << endl;
+            quiz.addQuestion(&ques); // add question to quiz set
+            break;
+        }
+    }
+
+    fin.close();
 }
 
 void initServerTCP(int &serverSock, int port)

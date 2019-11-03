@@ -1,6 +1,7 @@
-What year was the 2010 Vancouver Winter Olympics?
-a) 2008
-b) 2009
-c) 2010
-d) 2011
-Ans: C
+?What year was the 2010 Vancouver Winter Olympics?
+1a) 2008
+2b) 2009
+3c) 2010
+4d) 2011
+!C
+

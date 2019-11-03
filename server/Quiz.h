@@ -15,14 +15,15 @@ private:
     char mode;                      // most voted choice of question
     bool answerCorrect;             // did players pick correct answer or not
     int failCounter;                // total 3 wrong answers; stop quiz
-    int points;                     // points for each game
+    // int points;                     // points for each game
 
 public:
     Quiz(/* args */);
     ~Quiz();
-    char calculateMode();        // calculate the most chosen choice from players
-    void checkCorrectResponse(); // check if majority choice is right or wrong
-    void printAnswerScreen();    // print result of question
+    char calculateMode();             // calculate the most chosen choice from players
+    void checkCorrectResponse();      // check if majority choice is right or wrong
+    void printAnswerScreen();         // print result of question
+    void addQuestion(Question *ques); // add question to set for quiz
 
     // setters
     void setMode(char mChar) { mode = mChar; }

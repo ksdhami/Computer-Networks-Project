@@ -1,16 +1,18 @@
 #include <string>
+#include <iostream>
 #include "Question.h"
 
 using namespace std;
 
-Question::Question(string qes, string cA, string cB, string cC, string cD, char ans)
+Question::Question(string qesIn, string choiceAIn, string choiceBIn, string choiceCIn, string choiceDIn, char ansIn)
 {
-    setQuestion(qes);
-    setChoiceA(cA);
-    setChoiceB(cB);
-    setChoiceC(cC);
-    setChoiceD(cD);
-    setAnswer(ans);
+    // cout << "From Constructor \nA = " << choiceAIn << "\nB = " << choiceBIn << "\nC = " << choiceCIn << "\nD = " << choiceDIn << endl; 
+    setQuestion(qesIn);
+    setChoiceA(choiceAIn);
+    setChoiceB(choiceBIn);
+    setChoiceC(choiceCIn);
+    setChoiceD(choiceDIn);
+    setAnswer(ansIn);
 }
 
 Question::~Question()
