@@ -1,7 +1,7 @@
 CXX := g++
 CXXFLAGS := -Wall -g
 LDFLAGS :=
-OBJFILES := SelectServer.o Question.o Quiz.o 
+OBJFILES := SelectServer.o Question.o Quiz.o Player.o
 TARGET := server
 
 all: $(TARGET)

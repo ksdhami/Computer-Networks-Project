@@ -1,6 +1,7 @@
 #include <string>
 #include <vector>
 #include "Question.h"
+#include "Player.h"
 
 #ifndef QUIZ_H
 #define QUIZ_H
@@ -15,25 +16,30 @@ private:
     char mode;                      // most voted choice of question
     bool answerCorrect;             // did players pick correct answer or not
     int failCounter;                // total 3 wrong answers; stop quiz
-    // int points;                     // points for each game
+    int points;                     // points for each game
+    vector<Player *> team;          // set of players currently playing game
 
 public:
     Quiz(/* args */);
     ~Quiz();
-    char calculateMode();             // calculate the most chosen choice from players
-    void checkCorrectResponse();      // check if majority choice is right or wrong
-    void printAnswerScreen();         // print result of question
-    void addQuestion(Question *ques); // add question to set for quiz
+    void calculateMode();        // calculate the most chosen choice from players
+    void checkCorrectResponse(); // check if majority choice is right or wrong
+    void printAnswerScreen();    // print result of question
 
     // setters
+    void setFailCounter(int cnt) { failCounter = cnt; }
+    void setPoints(int pnt) { points = pnt; }
     void setMode(char mChar) { mode = mChar; }
     void setAnswerCorrect(bool ans) { answerCorrect = ans; }
-    void addResponse(char res) { responses.push_back(res); }
     void clearResponses() { responses.clear(); }
     void incFailCounter() { failCounter++; }
+    void addQuestion(Question *ques); // add question to set for quiz
+    void addPlayer(Player *person);   // add person to team for game
+    void addResponse(char res);       // add each players choice to set
 
     // getters
     char getMode() { return mode; }
+    int getPoints() { return points; }
     bool getAnswerCorrect() { return answerCorrect; }
     int getFailCounter() { return failCounter; }
 };

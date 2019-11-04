@@ -6,15 +6,16 @@ using namespace std;
 Quiz::Quiz(/* args */)
 {
     // TODO: finish constructor
-    failCounter = 0;
+    setFailCounter(0);
+    setPoints(0);
 }
 
 Quiz::~Quiz()
 {
-    // TODO: deconstructor
+
 }
 
-char Quiz::calculateMode()
+void Quiz::calculateMode()
 {
     // Allocate an int array of the same size to hold the repetition count
     int *repCnt = new int[responses.size()];
@@ -32,12 +33,6 @@ char Quiz::calculateMode()
         }
         ++(repCnt[j]);
     }
-    // for even number of users
-    // TODO: change to even number of responses insead
-    if (responses.size() % 2 == 0)
-    {
-        repCnt[0] = repCnt[0] + 1;
-    }
 
     int maxRepeat = 0;
     for (int i = 1; i < responses.size(); ++i)
@@ -49,7 +44,8 @@ char Quiz::calculateMode()
     }
 
     delete[] repCnt;
-    return responses[maxRepeat];
+    setMode(responses[maxRepeat]);
+    // return responses[maxRepeat];
 }
 
 // check if responses by players is right or wrong
@@ -76,10 +72,23 @@ void Quiz::printAnswerScreen()
     }
 }
 
+void Quiz::addResponse(char res)
+{
+    // cout << "Chocie being added to set of responses: " << res << endl;
+    responses.push_back(res);
+}
+
 // add question to set
 void Quiz::addQuestion(Question *ques)
 {
     // cout << "Question being added: \n" << ques->getQuestionsAndChoicesString() << endl;
     // cout << "Answer to question is: " << ques->getAnswer() << endl;
     questionSet.push_back(ques);
+}
+
+// add player to team 
+void Quiz::addPlayer(Player *person)
+{
+    // cout << "User being added to team: " << person->getUsername() << " with password: " << person->getPassword() << endl;
+    team.push_back(person);
 }

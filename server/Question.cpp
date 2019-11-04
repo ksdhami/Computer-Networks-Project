@@ -17,7 +17,7 @@ Question::Question(string qesIn, string choiceAIn, string choiceBIn, string choi
 
 Question::~Question()
 {
-    // TODO: deconstructor
+    
 }
 
 // string that will show question and choices 
