@@ -82,10 +82,10 @@ int main(int argc, char *argv[])
     fgets(outBuffer, BUFFERSIZE, stdin);
     while (strncmp(outBuffer, "logout", 6) != 0)
     {
-        if (strncmp(outBuffer, "get", 3) == 0)
-        {
-            getFile = true;
-        }
+        // if (strncmp(outBuffer, "get", 3) == 0)
+        // {
+        //     getFile = true;
+        // }
         msgLength = strlen(outBuffer);
 
         // Send the message to the server
@@ -96,48 +96,48 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
-        if (list)
-        {
-            string msgReceived = "";
-            while (1)
-            {
-                memset(&inBuffer, 0, BUFFERSIZE);
-                bytesRecv = recv(sock, (char *)&inBuffer, 32, 0);
-                string temp(inBuffer);
-                msgReceived += temp;
-                if (bytesRecv < 32)
-                {
-                    break;
-                }
-            }
+        // if (list)
+        // {
+        //     string msgReceived = "";
+        //     while (1)
+        //     {
+        //         memset(&inBuffer, 0, BUFFERSIZE);
+        //         bytesRecv = recv(sock, (char *)&inBuffer, 32, 0);
+        //         string temp(inBuffer);
+        //         msgReceived += temp;
+        //         if (bytesRecv < 32)
+        //         {
+        //             break;
+        //         }
+        //     }
 
-            cout << "Server: " << msgReceived;
-        }
+        //     cout << "Server: " << msgReceived;
+        // }
 
-        if (getFile)
-        {
-            memset(&inBuffer, 0, BUFFERSIZE);
-            bytesRecv = recv(sock, (char *)&inBuffer, 32, 0);
-            string name(inBuffer);
+        // if (getFile)
+        // {
+        //     memset(&inBuffer, 0, BUFFERSIZE);
+        //     bytesRecv = recv(sock, (char *)&inBuffer, 32, 0);
+        //     string name(inBuffer);
 
-            ofstream outfile(name, ofstream::binary);
-            int bytesRecvTotal = 0;
-            while (1)
-            {
-                memset(&inBuffer, 0, BUFFERSIZE);
-                bytesRecv = recv(sock, (char *)&inBuffer, 32, 0);
-                bytesRecvTotal += bytesRecv;
-                outfile.write(inBuffer, 32);
-                if (bytesRecv < 32)
-                {
-                    break;
-                }
-            }
-            cout << "File saved in " << name << " (" << bytesRecvTotal << " bytes)" << endl;
-            memset(&outBuffer, 0, BUFFERSIZE);
+        //     ofstream outfile(name, ofstream::binary);
+        //     int bytesRecvTotal = 0;
+        //     while (1)
+        //     {
+        //         memset(&inBuffer, 0, BUFFERSIZE);
+        //         bytesRecv = recv(sock, (char *)&inBuffer, 32, 0);
+        //         bytesRecvTotal += bytesRecv;
+        //         outfile.write(inBuffer, 32);
+        //         if (bytesRecv < 32)
+        //         {
+        //             break;
+        //         }
+        //     }
+        //     cout << "File saved in " << name << " (" << bytesRecvTotal << " bytes)" << endl;
+        //     memset(&outBuffer, 0, BUFFERSIZE);
 
-            outfile.close();
-        }
+        //     outfile.close();
+        // }
 
         if (!getFile)
         {
@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            getFile = false;
+            // getFile = false;
             cout << "Please enter a message to be sent to the server ('logout' to terminate): ";
             fgets(outBuffer, BUFFERSIZE, stdin);
         }

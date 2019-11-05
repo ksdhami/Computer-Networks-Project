@@ -51,8 +51,8 @@ void Quiz::calculateMode()
 // check if responses by players is right or wrong
 void Quiz::checkCorrectResponse()
 {
-    Question *ans = questionSet.at(0);
-    char correctAns = ans->getAnswer();
+    Question ques = questionSet.back();
+    char correctAns = ques.getAnswer();
 
     cout << "Correct answer for question: " << correctAns << endl;
 
@@ -60,16 +60,36 @@ void Quiz::checkCorrectResponse()
 }
 
 // print result of response
-void Quiz::printAnswerScreen()
+string Quiz::printAnswerScreen()
 {
     if (getAnswerCorrect())
     {
         cout << "Congratulations, you picked the right answer" << endl;
+        return "Congratulations, you picked the right answer";
     }
     else
     {
         cout << "You picked the wrong choice" << endl;
+        return "You picked the wrong choice";
     }
+}
+
+void Quiz::setPointsOrFail()
+{
+    if (getAnswerCorrect())
+    {
+        setPoints(1);
+    }
+    else
+    {
+        incFailCounter();
+    }
+    
+}
+
+void Quiz::removeQuestion()
+{
+    questionSet.pop_back();
 }
 
 void Quiz::addResponse(char res)
@@ -79,16 +99,16 @@ void Quiz::addResponse(char res)
 }
 
 // add question to set
-void Quiz::addQuestion(Question *ques)
+void Quiz::addQuestion(Question ques)
 {
-    // cout << "Question being added: \n" << ques->getQuestionsAndChoicesString() << endl;
+    cout << "Question being added: \n" << ques.getQuestionsAndChoicesString() << endl;
     // cout << "Answer to question is: " << ques->getAnswer() << endl;
     questionSet.push_back(ques);
 }
 
 // add player to team 
-void Quiz::addPlayer(Player *person)
+void Quiz::addPlayer(Player person)
 {
-    // cout << "User being added to team: " << person->getUsername() << " with password: " << person->getPassword() << endl;
+    cout << "User being added to team: " << person.getUsername() << " with password: " << person.getPassword() << endl;
     team.push_back(person);
 }

@@ -8,3 +8,8 @@ Player::Player(string name, string pass)
     setUsername(name);
     setPassword(pass);
 }
+
+Player::~Player()
+{
+    
+}

@@ -40,21 +40,46 @@ struct timeval timeout = {0, 10}; // The timeout value for select()
 struct timeval selectTime;
 fd_set tempRecvSockSet; // Temp. receive socket set for select()
 
-struct sockaddr_in serverAddrUDP; // address of the UDP server
-
 bool unknownCommandFlag = false;
 string unknownCommand;
 
 Quiz quiz;
+bool quizStarted = false;
+bool readQuestionsFromFile = false;
+bool playerReady = false;
+bool requestQuestionRepeat = false;
+bool questionSent = false;
+bool answerRec = false;
+vector<Player> players;
 
 void initServerTCP(int &, int port);
 void processSockets(fd_set);
 void sendDataTCP(int, char[], int);
 void receiveDataTCP(int, char[], int &);
+
 void readQuestionFile();
+void quizGame();
+
+// https://stackoverflow.com/questions/15063301/how-can-i-find-an-object-in-a-vector-based-on-class-properties
+class FindAttribute
+{
+    string name_;
+
+public:
+    FindAttribute(const string &name)
+        : name_(name)
+    {
+    }
+
+    bool operator()(Player &attr)
+    {
+        return attr.getPassword() == name_;
+    }
+};
 
 int main(int argc, char *argv[])
 {
+
     // Check for input errors
     if (argc != 2)
     {
@@ -76,12 +101,17 @@ int main(int argc, char *argv[])
 
     bool TCPInc = false;
 
-    // read file containing questions
-    readQuestionFile();
-
     // Run the server until a "terminate" command is received)
     while (!terminated)
     {
+
+        // read file containing questions
+        if (!readQuestionsFromFile)
+        {
+            readQuestionFile();
+            readQuestionsFromFile = true;
+        }
+
         // copy the receive descriptors to the working set
         memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
 
@@ -106,6 +136,10 @@ int main(int argc, char *argv[])
                 break;
             cout << "Accepted a connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << endl;
 
+            Player player(inet_ntoa(clientAddr.sin_addr), to_string(clientAddr.sin_port));
+            players.push_back(player);
+            cout << "Player being added to select server vector: " << players.back().getUsername() << " with password: " << players.back().getPassword() << endl;
+
             // Add the new connection to the receive socket set
             FD_SET(clientSock, &recvSockSet);
             maxDesc = max(maxDesc, clientSock);
@@ -118,13 +152,14 @@ int main(int argc, char *argv[])
 
         // Then process messages waiting at each ready socket
 
-        if (~(TCPInc))
-        {
-        }
-        else
+        if (!~(TCPInc))
         {
             processSockets(tempRecvSockSet);
         }
+        // else
+        // {
+        //     processSockets(tempRecvSockSet);
+        // }
 
         TCPInc = false;
     }
@@ -193,7 +228,7 @@ void readQuestionFile()
             // create question object
             Question ques(qQuestion, qChoiceA, qChoiceB, qChoiceC, qChoiceD, qAnswer);
             // cout << "Repeat Question Command Check \n" << ques.getQuestionsAndChoicesString() << endl;
-            quiz.addQuestion(&ques); // add question to quiz set
+            quiz.addQuestion(ques); // add question to quiz set
             break;
         }
     }
@@ -310,16 +345,40 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     {
         terminated = true;
     }
-    else if (strncmp(inBuffer, "list", 4) == 0)
+    else if (strncmp(inBuffer, "/ready", 6) == 0)
     {
-        list = true;
+        auto attr_iter = find_if(players.begin(), players.end(), FindAttribute(to_string(clientAddr.sin_port)));
+        if (attr_iter != players.end())
+        {
+            cout << "player found with password: " << to_string(clientAddr.sin_port) << endl;
+            auto index = distance(players.begin(), attr_iter);
+            cout << "index of player is: " << index << endl;
+            quiz.addPlayer(players.at(index));
+            playerReady = true;
+        }
     }
-    else if (strncmp(inBuffer, "get", 3) == 0)
+    else if (strncmp(inBuffer, "/repeat", 7) == 0)
     {
-        getFile = true;
+        requestQuestionRepeat = true;
+    }
+    else if (strncmp(inBuffer, "/answer", 7) == 0 && quizStarted && questionSent)
+    {
         string temp(inBuffer);
-        fileName = temp.substr(4, strlen(temp.c_str()) - 5);
+        cout << "client replied with: " << temp << endl;
+        cout << "client replied with: " << temp[8] << endl;
+        quiz.addResponse(tolower(temp[8]));
+        answerRec = true;
     }
+    // else if (strncmp(inBuffer, "list", 4) == 0)
+    // {
+    //     list = true;
+    // }
+    // else if (strncmp(inBuffer, "get", 3) == 0)
+    // {
+    //     getFile = true;
+    //     string temp(inBuffer);
+    //     fileName = temp.substr(4, strlen(temp.c_str()) - 5);
+    // }
     else
     {
         unknownCommandFlag = true;
@@ -419,6 +478,92 @@ void sendDataTCP(int sock, char *buffer, int size)
 
         infile.close();
         getFile = false;
+    }
+
+    if (playerReady)
+    {
+        string msg = "You ready to play the game. Have fun\n";
+        int size = msg.length();
+        bytesSent = send(sock, (char *)msg.c_str(), size, 0);
+        if (bytesSent < 0)
+        {
+            cout << "error in sending: sendDataTCP" << endl;
+            return;
+        }
+        else
+        {
+            playerReady = false;
+            // TODO: for multiplayer only set quizstarted when everyone has readied up
+            quizStarted = true;
+        }
+    }
+
+    if (quizStarted && questionSent && requestQuestionRepeat)
+    {
+        requestQuestionRepeat = false;
+        if (!quiz.isQuestionSetEmpty())
+        {
+            string msg = quiz.getQuestion().getQuestionsAndChoicesString() + "\n";
+            int size = msg.length();
+            bytesSent = send(sock, (char *)msg.c_str(), size, 0);
+            if (bytesSent < 0)
+            {
+                cout << "error in sending: sendDataTCP" << endl;
+                return;
+            }
+        }
+    }
+
+    if (quizStarted && questionSent && answerRec)
+    {
+        // TODO: fix points for last question
+        answerRec = false;
+        quiz.calculateMode(); // calculate most chosen response
+        // cout << "MODE: " << quiz.getMode() << endl;
+        quiz.checkCorrectResponse(); // check if most chosen response was correct or not
+        quiz.setPointsOrFail();
+        cout << "Points: " << quiz.getPoints() << " - Fails: " << quiz.getFailCounter() << endl;
+        string msg = quiz.printAnswerScreen() + "\n";
+        int size = msg.length();
+        bytesSent = send(sock, (char *)msg.c_str(), size, 0);
+        if (bytesSent < 0)
+        {
+            cout << "error in sending: sendDataTCP" << endl;
+            return;
+        }
+        quiz.clearResponses(); // clear responses for next question
+        quiz.removeQuestion();
+        questionSent = false;
+    }
+
+    if (quizStarted && !questionSent)
+    {
+        if (!quiz.isQuestionSetEmpty())
+        {
+            string msg = quiz.getQuestion().getQuestionsAndChoicesString() + "\n";
+            int size = msg.length();
+            bytesSent = send(sock, (char *)msg.c_str(), size, 0);
+            if (bytesSent < 0)
+            {
+                cout << "error in sending: sendDataTCP" << endl;
+                return;
+            }
+            else
+            {
+                questionSent = true;
+            }
+        }
+        else
+        {
+            string msg = "GAME OVER\n";
+            int size = msg.length();
+            bytesSent = send(sock, (char *)msg.c_str(), size, 0);
+            if (bytesSent < 0)
+            {
+                cout << "error in sending: sendDataTCP" << endl;
+                return;
+            }
+        }
     }
 
     if (unknownCommandFlag)
