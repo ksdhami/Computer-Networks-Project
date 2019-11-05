@@ -47,6 +47,7 @@ void processSockets (fd_set);
 void sendDataTCP (int, char[], int);
 void receiveDataTCP (int, char[], int&);
 
+char type;
 
 int main(int argc, char *argv[])
 {
@@ -293,7 +294,7 @@ void receiveDataTCP (int sock, char* inBuffer, int& size)
     string msg = string(inBuffer);
     cout << "TCP Client: " << msg;
 	
-	if (strncmp(inBuffer, "terminate", 9) == 0){
+	/*if (strncmp(inBuffer, "terminate", 9) == 0){
         terminated = true;
 	}else if(strncmp(inBuffer, "list", 4) == 0){
 		list = true;
@@ -309,8 +310,35 @@ void receiveDataTCP (int sock, char* inBuffer, int& size)
         string temp(inBuffer);
         unknownCommand = temp;
         cout << "Unknown command: " << temp << endl;
-    }
-	
+    }*/
+    
+    type = msg.at(0);
+	if (type == 'm') {
+		
+	}else if (type == 'r'){
+		
+	}else if (type == 'l'){
+		
+	}else if (type == 'p'){
+		
+	}else if (type == 'h'){
+		
+	}else if (type == 'e'){
+		
+	}else if (type == 'k'){
+		
+	}else if (type == 'q'){
+		
+	}else if (type == 'a'){
+		
+	}else if (type == 'v'){
+		
+	}else if (type == 'o'){
+		
+	}else{
+		cout << "missing event handler" << endl;
+	}
+	msg = msg.substr(1, msg.length()-1);
 	
 }
 

@@ -19,6 +19,7 @@ using namespace std;
 const int BUFFERSIZE = 512;   // Size the message buffers
 bool get = false;
 bool list = false;
+char type;
 
 int main(int argc, char *argv[])
 {
@@ -28,7 +29,7 @@ int main(int argc, char *argv[])
     int bytesRecv;                   // Number of bytes received
     
     char outBuffer[BUFFERSIZE];      // Buffer for message to the server
-char msgType;      // Buffer for message to the server
+	char tempBuffer[BUFFERSIZE];
     int msgLength;                   // Length of the outgoing message
     int bytesSent;                   // Number of bytes sent
 
@@ -82,13 +83,13 @@ char msgType;      // Buffer for message to the server
 
     cout << "Please enter a message to be sent to the server ('logout' to terminate): ";
     fgets(outBuffer, BUFFERSIZE, stdin);
-    while (strncmp(outBuffer, "logout", 6) != 0)
+    while (strncmp(outBuffer, "/logout", 6) != 0)
     {   
 		if(strncmp(outBuffer, "/", 1) == 0) {
 			cout << "found possible command" << endl;
 			int len;
 			for (int i = 0; i < BUFFERSIZE; i++) {
-				if (outBuffer[i] != NULL) {
+				if (outBuffer[i] != '\0') {
 					len++;
 				} else {
 					break;
@@ -116,27 +117,27 @@ char msgType;      // Buffer for message to the server
 			}else if(strncmp(outBuffer, "/logout", len) == 0) {
 				type = 'o';
 			}else{
-				cout << "Unknown command. Type /help to list all commands."
+				cout << "Unknown command. Type /help to list all commands." << endl;
 				//continue;
 			}
 		}else{
-			type = 'm'
+			type = 'm';
 		}
 		
 		// prepend type code
 		tempBuffer[0] = type;
-		for(int i = 0; i < BUFFERSIZE; i++){
-			
+		for(int i = 1; i < BUFFERSIZE + 1; i++){
+			tempBuffer[i] = outBuffer[i-1];
 		}
 		
 		if(strncmp(outBuffer, "get"	, 3) == 0){
 			//cout << "gets true" << endl;
 			get = true;
 		}
-        msgLength = strlen(outBuffer);
+        msgLength = strlen(tempBuffer);
         
         // Send the message to the server
-        bytesSent = send(sock, (char *) &outBuffer, msgLength, 0);
+        bytesSent = send(sock, (char *) &tempBuffer, msgLength, 0);
         if (bytesSent < 0 || bytesSent != msgLength)
         {
             cout << "error in sending" << endl;
@@ -207,7 +208,7 @@ char msgType;      // Buffer for message to the server
 		}
         
         
-        if (!get) {
+        /*if (!get) {
             string msgReceived = "";
 			while(1){
 				memset(&inBuffer, 0, BUFFERSIZE);
@@ -228,12 +229,26 @@ char msgType;      // Buffer for message to the server
             memset(&inBuffer, 0, BUFFERSIZE);
             cout << "Please enter a message to be sent to the server ('logout' to terminate): ";
             fgets(outBuffer, BUFFERSIZE, stdin);
-        } else {
-            get = false;
+        } */
+        
+        string msgReceived = "";
+			while(1){
+				memset(&inBuffer, 0, BUFFERSIZE);
+				bytesRecv = recv(sock, (char *) &inBuffer, 32, 0);
+				string temp(inBuffer);
+				msgReceived += temp;
+				if(bytesRecv < 32){
+					break;
+				}
+			}
+			
+			cout << "Server: " << msgReceived;
+			
+			// Clear the buffers
+            memset(&outBuffer, 0, BUFFERSIZE);
+            memset(&inBuffer, 0, BUFFERSIZE);
             cout << "Please enter a message to be sent to the server ('logout' to terminate): ";
             fgets(outBuffer, BUFFERSIZE, stdin);
-            
-        }
     }
 
     // Close the socket
