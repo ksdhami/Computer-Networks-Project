@@ -1,15 +1,40 @@
 #include <string>
-#include "Player.h"
+// #include "Player.h"
 
 using namespace std;
 
-Player::Player(string name, string pass)
+class Player
 {
-    setUsername(name);
-    setPassword(pass);
-}
+private:
+    string username;
+    string password;
 
-Player::~Player()
-{
-    
-}
+public:
+    Player(string name, string pass)
+    {
+        setUsername(name);
+        setPassword(pass);
+    }
+    ~Player()
+    {
+    }
+
+    // setters
+    void setUsername(string name) { username = name; }
+    void setPassword(string pass) { password = pass; }
+
+    // getters
+    string getUsername() { return username; }
+    string getPassword() { return password; }
+};
+
+// Player::Player(string name, string pass)
+// {
+//     setUsername(name);
+//     setPassword(pass);
+// }
+
+// Player::~Player()
+// {
+
+// }

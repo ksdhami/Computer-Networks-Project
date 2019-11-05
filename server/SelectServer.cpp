@@ -14,8 +14,8 @@
 #include <errno.h>
 #include <stdio.h>
 #include <fstream>
-#include "Quiz.h"
-#include "Question.h"
+#include "Quiz.cpp"
+// #include "Question.cpp"
 
 // #define QUESTIONFILE "questions.txt"
 #define QUESTIONFILE "qq.txt"
