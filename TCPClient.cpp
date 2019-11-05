@@ -16,7 +16,7 @@
 
 using namespace std;
 
-const int BUFFERSIZE = 32;   // Size the message buffers
+const int BUFFERSIZE = 512;   // Size the message buffers
 bool get = false;
 bool list = false;
 
@@ -28,6 +28,7 @@ int main(int argc, char *argv[])
     int bytesRecv;                   // Number of bytes received
     
     char outBuffer[BUFFERSIZE];      // Buffer for message to the server
+char msgType;      // Buffer for message to the server
     int msgLength;                   // Length of the outgoing message
     int bytesSent;                   // Number of bytes sent
 
@@ -83,6 +84,51 @@ int main(int argc, char *argv[])
     fgets(outBuffer, BUFFERSIZE, stdin);
     while (strncmp(outBuffer, "logout", 6) != 0)
     {   
+		if(strncmp(outBuffer, "/", 1) == 0) {
+			cout << "found possible command" << endl;
+			int len;
+			for (int i = 0; i < BUFFERSIZE; i++) {
+				if (outBuffer[i] != NULL) {
+					len++;
+				} else {
+					break;
+				}
+			}
+			
+			if(strncmp(outBuffer, "/ready", len) == 0) {
+				type = 'r';
+			}else if(strncmp(outBuffer, "/leaderboard", len) == 0) {
+				type = 'l';
+			}else if(strncmp(outBuffer, "/players", len) == 0) {
+				type = 'p';
+			}else if(strncmp(outBuffer, "/help", len) == 0) {
+				type = 'h';
+			}else if(strncmp(outBuffer, "/extra", len) == 0) {
+				type = 'e';
+			}else if(strncmp(outBuffer, "/kick <playerName>", len) == 0) {
+				type = 'k';
+			}else if(strncmp(outBuffer, "/question", len) == 0) {
+				type = 'q';
+			}else if(strncmp(outBuffer, "/<answer>", len) == 0) {
+				type = 'a';
+			}else if(strncmp(outBuffer, "/leave", len) == 0) {
+				type = 'v';
+			}else if(strncmp(outBuffer, "/logout", len) == 0) {
+				type = 'o';
+			}else{
+				cout << "Unknown command. Type /help to list all commands."
+				//continue;
+			}
+		}else{
+			type = 'm'
+		}
+		
+		// prepend type code
+		tempBuffer[0] = type;
+		for(int i = 0; i < BUFFERSIZE; i++){
+			
+		}
+		
 		if(strncmp(outBuffer, "get"	, 3) == 0){
 			//cout << "gets true" << endl;
 			get = true;

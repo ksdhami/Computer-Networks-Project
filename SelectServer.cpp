@@ -17,7 +17,7 @@
 
 using namespace std;
 
-const int BUFFERSIZE = 32;   // Size the message buffers
+const int BUFFERSIZE = 512;   // Size the message buffers
 const int MAXPENDING = 10;    // Maximum pending connections
 
 fd_set recvSockSet;   // The set of descriptors for incoming connections
@@ -43,11 +43,10 @@ char inBuffer[BUFFERSIZE];       // Buffer for the message from the server
 string unknownCommand;
 
 void initServerTCP (int&, int port);
-void initServerUDP (int&, int port);
 void processSockets (fd_set);
 void sendDataTCP (int, char[], int);
 void receiveDataTCP (int, char[], int&);
-void handleDataUDP (int, char[], int&);
+
 
 int main(int argc, char *argv[])
 {
@@ -65,9 +64,7 @@ int main(int argc, char *argv[])
     // Initilize the server
     initServerTCP(serverSockTCP, atoi(argv[1]));
     //cout << "initialized tcp server" << endl;
-    initServerUDP(serverSockUDP, atoi(argv[1]));
-    //cout << "initialized udp server" << endl;
-    
+
     // Clear the socket sets    
     FD_ZERO(&recvSockSet);
 
@@ -229,79 +226,6 @@ void initServerTCP(int& serverSock, int port)
     } */
 }
 
-void initServerUDP(int& serverSock, int port)
-{
-
-
-    // Create a UDP socket
-    // * AF_INET: using address family "Internet Protocol address"
-    // * SOCK_STREAM: Provides sequenced, reliable, bidirectional, connection-mode byte streams.
-    // * IPPROTO_TCP: TCP protocol
-    if ((serverSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
-    {
-        cout << "socket() failed" << endl;
-        exit(1);
-    }
-    
-    /* // Create a UDP socket
-    if ((serverSockUDP = socket(AF_INET, SOCK_STREAM, IPPROTO_UDP)) < 0)
-    {
-        cout << "socket() failed" << endl;
-        exit(1);
-    } */
-    
-    
-    // Free up the port before binding
-    // * sock: the socket just created
-    // * SOL_SOCKET: set the protocol level at the socket level
-    // * SO_REUSEADDR: allow reuse of local addresses
-    // * &yes: set SO_REUSEADDR on a socket to true (1)
-    // * sizeof(int): size of the value pointed by "yes"
-    int yes = 1;
-    if (setsockopt(serverSock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0)
-    {
-        cout << "setsockopt() failed" << endl;
-        exit(1);
-    }
-    /* if (setsockopt(serverSockUDP, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0)
-    {
-        cout << "setsockopt() failed" << endl;
-        exit(1);
-    } */
-    
-    // Initialize the server information
-    // Note that we can't choose a port less than 1023 if we are not privileged users (root)
-    memset(&serverAddrUDP, 0, sizeof(serverAddrUDP));         // Zero out the structure
-    serverAddrUDP.sin_family = AF_INET;                    // Use Internet address family
-    serverAddrUDP.sin_port = htons(port);                  // Server port number
-    serverAddrUDP.sin_addr.s_addr = htonl(INADDR_ANY);     // Any incoming interface
-    
-    // Bind to the local address
-    if (bind(serverSock, (sockaddr*)&serverAddrUDP, sizeof(serverAddrUDP)) < 0)
-    {
-        cout << "bind() failed" << endl;
-        exit(1);
-    }
-    
-    /* if (bind(serverSockUDP, (sockaddr*)&serverAddr, sizeof(serverAddr)) < 0)
-    {
-        cout << "bind() failed" << endl;
-        exit(1);
-    } */
-    
-    // Listen for connection requests
-    /* if (listen(serverSock, MAXPENDING) < 0)
-    {
-        cout << "listen() failed" << endl;
-        exit(1);
-    } */
-    
-    /* if (listen(serverSockUDP, MAXPENDING) < 0)
-    {
-        cout << "listen() failed" << endl;
-        exit(1);
-    } */
-}
 
 void processSockets (fd_set readySocks)
 {
@@ -337,8 +261,7 @@ void processSockets (fd_set readySocks)
             //cout << "udp buffs cleared" << endl;
 
             // Handle data from the client
-            handleDataUDP(sock, buffer, size);
-            //cout << "udp data handled" << endl;
+
 
         }
         else {
@@ -533,43 +456,4 @@ void sendDataTCP (int sock, char* buffer, int size)
   
     
     
-}
-
-void handleDataUDP (int sock, char* inBuffer, int& size)
-{   
-	socklen_t len = sizeof(clientAddr);
-	
-	
-    //cout << "client addr " << (int)clientAddr << endl;
-     int bytesRecv = recvfrom(sock, (char *) inBuffer, BUFFERSIZE, 0, (sockaddr*)&clientAddr, &len);
-	 //fprintf(stderr, "socket() failed: %s\n", strerror(errno));
-	 //cout << "MSG: " << inBuffer << endl;
-     //int bytesRecv = recv(sock, (char *) inBuffer, BUFFERSIZE, 0);
-     //cout << "found something: " << bytesRecv <<  " " << inBuffer << endl;
-     //cout << "sock:" << sock << endl;
-     // Check for errors   
-     if (bytesRecv < 0)
-     {
-   cout << "recvfrom() failed, or the connection is closed. " << endl;
-    exit(1); 
-    }
-    //<< inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port
-    cout << "UDP Client " << ": " << inBuffer;
-
-    int bytesSent = 0;                   // Number of bytes sent
-    
-    // Echo the message back to the client
-    bytesSent = sendto(sock, (char *) inBuffer, bytesRecv, 0, (struct sockaddr *) &clientAddr, len);
-    //bytesSent = send(sock, (char *) inBuffer + bytesSent, size - bytesSent, 0);       
-    // Check for errors
-	//cout << "Bytes sent: " << bytesSent << endl;
-     if (bytesSent != bytesRecv)
-    {
-        //cout << "bytes sent: " << bytesSent << endl;
-        //cout << "bytes received: " << bytesRecv << endl;
-        cout << "error in sending" << endl;
-                    
-        exit(1); 
-    }
-
 }
