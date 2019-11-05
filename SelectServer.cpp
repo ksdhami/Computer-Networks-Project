@@ -48,6 +48,8 @@ void sendDataTCP (int, char[], int);
 void receiveDataTCP (int, char[], int&);
 
 char type;
+string msg;
+bool noSend = false;
 
 int main(int argc, char *argv[])
 {
@@ -291,8 +293,7 @@ void receiveDataTCP (int sock, char* inBuffer, int& size)
         return; 
     }
 
-    string msg = string(inBuffer);
-    cout << "TCP Client: " << msg;
+    
 	
 	/*if (strncmp(inBuffer, "terminate", 9) == 0){
         terminated = true;
@@ -311,7 +312,7 @@ void receiveDataTCP (int sock, char* inBuffer, int& size)
         unknownCommand = temp;
         cout << "Unknown command: " << temp << endl;
     }*/
-    
+    msg = string(inBuffer);
     type = msg.at(0);
 	if (type == 'm') {
 		
@@ -322,7 +323,8 @@ void receiveDataTCP (int sock, char* inBuffer, int& size)
 	}else if (type == 'p'){
 		
 	}else if (type == 'h'){
-		
+		noSend = true;
+		return;
 	}else if (type == 'e'){
 		
 	}else if (type == 'k'){
@@ -339,6 +341,8 @@ void receiveDataTCP (int sock, char* inBuffer, int& size)
 		cout << "missing event handler" << endl;
 	}
 	msg = msg.substr(1, msg.length()-1);
+	
+    cout << "TCP Client: " << msg;
 	
 }
 
@@ -464,8 +468,8 @@ void sendDataTCP (int sock, char* buffer, int size)
 		
 		delete[] buffer;
 
-  //outfile.close();
-  infile.close();
+	  //outfile.close();
+	  infile.close();
 		get = false;
 		
 	}
@@ -482,6 +486,16 @@ void sendDataTCP (int sock, char* buffer, int size)
         unknownCommandFlag = false;
     }
   
-    
+    if(!noSend){
+        msg = "Server: " + msg;
+        size = msg.length();
+        bytesSent = send(sock, (char *) msg.c_str(), size, 0);
+		if (bytesSent < 0){
+			cout << "error in sending: sendDataTCP" << endl;
+			return;
+		}
+	}else{
+		return;
+	}	
     
 }

@@ -104,6 +104,7 @@ int main(int argc, char *argv[])
 				type = 'p';
 			}else if(strncmp(outBuffer, "/help", len) == 0) {
 				type = 'h';
+				cout << "/ready\n/leaderboard\n/players\n/help\n/extra\n/kick <playerName>\n/question\n/<answer>\n/leave\n/logout\n" << endl;
 			}else if(strncmp(outBuffer, "/extra", len) == 0) {
 				type = 'e';
 			}else if(strncmp(outBuffer, "/kick <playerName>", len) == 0) {
@@ -234,15 +235,15 @@ int main(int argc, char *argv[])
         string msgReceived = "";
 			while(1){
 				memset(&inBuffer, 0, BUFFERSIZE);
-				bytesRecv = recv(sock, (char *) &inBuffer, 32, 0);
+				bytesRecv = recv(sock, (char *) &inBuffer, BUFFERSIZE, 0);
 				string temp(inBuffer);
 				msgReceived += temp;
-				if(bytesRecv < 32){
+				if(bytesRecv < BUFFERSIZE){
 					break;
 				}
 			}
 			
-			cout << "Server: " << msgReceived;
+			cout << msgReceived;
 			
 			// Clear the buffers
             memset(&outBuffer, 0, BUFFERSIZE);
