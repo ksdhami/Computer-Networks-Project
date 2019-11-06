@@ -87,7 +87,8 @@ int main(int argc, char *argv[])
     fgets(outBuffer, BUFFERSIZE, stdin);
     int len;
     
-    while (strncmp(outBuffer, "/logout", 6) != 0)
+	//while (strncmp(outBuffer, "/logout", 6) != 0)
+    while (1)
     {   
 		if(strncmp(outBuffer, "/", 1) == 0) {
 			//cout << "found possible command" << outBuffer << endl;
@@ -265,7 +266,9 @@ int main(int argc, char *argv[])
             cout << "Please enter a message to be sent to the server ('logout' to terminate): ";
             fgets(outBuffer, BUFFERSIZE, stdin);
         } */
-        
+        if (type == 'o') {
+			break;
+		}
         if(!noRecv){
 			string msgReceived = "";
 				while(1){
@@ -281,14 +284,29 @@ int main(int argc, char *argv[])
 				cout << msgReceived;
 				
 		}
+		//cout << "type: " << type << endl;
+		
 		noRecv = false;
 			// Clear the buffers
             memset(&outBuffer, 0, BUFFERSIZE);
             memset(&inBuffer, 0, BUFFERSIZE);
+			memset(&tempBuffer, 0, BUFFERSIZE);
             cout << "Please enter a message to be sent to the server: ";
             fgets(outBuffer, BUFFERSIZE, stdin);
     }
-
+	
+	if (type == 'o') {
+		string msgReceived = "";
+		while(1){
+			memset(&inBuffer, 0, BUFFERSIZE);
+			bytesRecv = recv(sock, (char *) &inBuffer, BUFFERSIZE, 0);
+			string temp(inBuffer);
+			msgReceived += temp;
+			if(bytesRecv < BUFFERSIZE){
+				break;
+			}
+		}
+	}
     // Close the socket
     close(sock);
     exit(0);
