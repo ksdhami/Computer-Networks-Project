@@ -27,14 +27,3 @@ public:
     string getUsername() { return username; }
     string getPassword() { return password; }
 };
-
-// Player::Player(string name, string pass)
-// {
-//     setUsername(name);
-//     setPassword(pass);
-// }
-
-// Player::~Player()
-// {
-
-// }

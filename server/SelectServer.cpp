@@ -50,6 +50,7 @@ bool playerReady = false;
 bool requestQuestionRepeat = false;
 bool questionSent = false;
 bool answerRec = false;
+bool lastQuestion = false;
 vector<Player> players;
 
 void initServerTCP(int &, int port);
@@ -234,6 +235,7 @@ void readQuestionFile()
     }
 
     fin.close();
+    lastQuestion = false;
 }
 
 void initServerTCP(int &serverSock, int port)
@@ -345,7 +347,7 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     {
         terminated = true;
     }
-    else if (strncmp(inBuffer, "/ready", 6) == 0)
+    else if (strncmp(inBuffer, "/ready", 6) == 0 && playerReady == false)
     {
         auto attr_iter = find_if(players.begin(), players.end(), FindAttribute(to_string(clientAddr.sin_port)));
         if (attr_iter != players.end())
@@ -357,7 +359,7 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
             playerReady = true;
         }
     }
-    else if (strncmp(inBuffer, "/repeat", 7) == 0)
+    else if (strncmp(inBuffer, "/question", 7) == 0)
     {
         requestQuestionRepeat = true;
     }
@@ -369,16 +371,6 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
         quiz.addResponse(tolower(temp[8]));
         answerRec = true;
     }
-    // else if (strncmp(inBuffer, "list", 4) == 0)
-    // {
-    //     list = true;
-    // }
-    // else if (strncmp(inBuffer, "get", 3) == 0)
-    // {
-    //     getFile = true;
-    //     string temp(inBuffer);
-    //     fileName = temp.substr(4, strlen(temp.c_str()) - 5);
-    // }
     else
     {
         unknownCommandFlag = true;
@@ -392,95 +384,7 @@ void sendDataTCP(int sock, char *buffer, int size)
 {
     int bytesSent = 0; // Number of bytes sent
 
-    if (list)
-    {
-        // Execute the "ls" command and save the output to /tmp/temp.txt.
-        // /tmp is a special directory storing temporate files in Linux.
-        system("ls > /tmp/temp.txt");
-
-        // Open the file
-        ifstream infile;
-        infile.open("/tmp/temp.txt");
-
-        // Store the file content into a string
-        string line;
-        string data = "";
-        while (getline(infile, line))
-        {
-            data += line + "\n";
-        }
-
-        // Close the file
-        infile.close();
-
-        cout << data;
-        size = strlen(data.c_str());
-        //cout << "size is " << size << endl;
-        bytesSent = send(sock, (char *)data.c_str(), size, 0);
-        if (bytesSent < 0)
-        {
-            cout << "error in sending: sendDataTCP" << endl;
-            return;
-        }
-        //cout << "SENT: " << bytesSent << endl;
-        list = false;
-    }
-    // Sent the data
-    //bytesSent += send(sock, (char *) buffer + bytesSent, size - bytesSent, 0);
-    if (getFile)
-    {
-        size_t found = fileName.find(".");
-
-        std::string temp = "-" + std::to_string(clientAddr.sin_port);
-
-        string newName = fileName;
-        newName.insert(found, temp);
-
-        bytesSent = send(sock, (char *)newName.c_str(), newName.length(), 0);
-        if (bytesSent < 0)
-        {
-            cout << "error in sending: sendDataTCP" << endl;
-            return;
-        }
-        //cout << "SENT: " << bytesSent << endl;
-        list = false;
-
-        char *cstr = new char[fileName.length() + 1];
-        strcpy(cstr, fileName.c_str());
-        //cout << "FILENAME = '" << cstr << "'" << endl;
-        std::ifstream infile(cstr, ifstream::binary);
-
-        // get size of file
-        infile.seekg(0, infile.end);
-        //cout << "about to size=\n";
-        ifstream::pos_type size = infile.tellg();
-        //cout << "about to seekg\n";
-        infile.seekg(0);
-        //cout << "done\n";
-
-        // allocate memory for file content
-        char *buffer = new char[size];
-        //cout << "im about to read a " << size << " file" << endl;
-        // read content of infile
-        infile.read(buffer, size);
-
-        //cout << "read it\n";
-
-        bytesSent = send(sock, (char *)buffer, size, 0);
-        if (bytesSent < 0)
-        {
-            cout << "error in sending: sendDataTCP" << endl;
-            return;
-        }
-        //cout << "SENT: " << bytesSent << endl;
-
-        delete[] buffer;
-
-        infile.close();
-        getFile = false;
-    }
-
-    if (playerReady)
+    if (playerReady && !quizStarted)
     {
         string msg = "You ready to play the game. Have fun\n";
         int size = msg.length();
@@ -492,7 +396,6 @@ void sendDataTCP(int sock, char *buffer, int size)
         }
         else
         {
-            playerReady = false;
             // TODO: for multiplayer only set quizstarted when everyone has readied up
             quizStarted = true;
         }
@@ -503,7 +406,7 @@ void sendDataTCP(int sock, char *buffer, int size)
         requestQuestionRepeat = false;
         if (!quiz.isQuestionSetEmpty())
         {
-            string msg = quiz.getQuestion().getQuestionsAndChoicesString() + "\n";
+            string msg = quiz.getQuestionFromClass();
             int size = msg.length();
             bytesSent = send(sock, (char *)msg.c_str(), size, 0);
             if (bytesSent < 0)
@@ -516,13 +419,12 @@ void sendDataTCP(int sock, char *buffer, int size)
 
     if (quizStarted && questionSent && answerRec)
     {
-        // TODO: fix points for last question
         answerRec = false;
         quiz.calculateMode(); // calculate most chosen response
         // cout << "MODE: " << quiz.getMode() << endl;
         quiz.checkCorrectResponse(); // check if most chosen response was correct or not
         quiz.setPointsOrFail();
-        cout << "Points: " << quiz.getPoints() << " - Fails: " << quiz.getFailCounter() << endl;
+
         string msg = quiz.printAnswerScreen() + "\n";
         int size = msg.length();
         bytesSent = send(sock, (char *)msg.c_str(), size, 0);
@@ -531,8 +433,8 @@ void sendDataTCP(int sock, char *buffer, int size)
             cout << "error in sending: sendDataTCP" << endl;
             return;
         }
-        quiz.clearResponses(); // clear responses for next question
-        quiz.removeQuestion();
+
+        quiz.clearResponsesAndLastQuestion(); // clear responses for next question
         questionSent = false;
     }
 
@@ -540,22 +442,25 @@ void sendDataTCP(int sock, char *buffer, int size)
     {
         if (!quiz.isQuestionSetEmpty())
         {
-            string msg = quiz.getQuestion().getQuestionsAndChoicesString() + "\n";
+            cout << "Questions remain\n" << endl;
+
+            string msg = quiz.getQuestionFromClass();
+            cout << "Next question: \n" << msg << endl;
             int size = msg.length();
             bytesSent = send(sock, (char *)msg.c_str(), size, 0);
+            // cout << to_string(bytesSent) << endl;
             if (bytesSent < 0)
             {
                 cout << "error in sending: sendDataTCP" << endl;
                 return;
             }
-            else
-            {
-                questionSent = true;
-            }
+            // cout << "msg success sent" << endl;
+            questionSent = true;
         }
         else
         {
             string msg = "GAME OVER\n";
+            msg += "Points: " + to_string(quiz.getPoints()) + " Fails: " + to_string(quiz.getFailCounter()) + "\n";
             int size = msg.length();
             bytesSent = send(sock, (char *)msg.c_str(), size, 0);
             if (bytesSent < 0)
@@ -563,6 +468,7 @@ void sendDataTCP(int sock, char *buffer, int size)
                 cout << "error in sending: sendDataTCP" << endl;
                 return;
             }
+            playerReady = false;
         }
     }
 
@@ -580,3 +486,4 @@ void sendDataTCP(int sock, char *buffer, int size)
         unknownCommandFlag = false;
     }
 }
+
