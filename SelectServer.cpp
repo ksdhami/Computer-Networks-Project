@@ -73,9 +73,7 @@ int main(int argc, char *argv[])
 
     // Add the listening socket to the set
     FD_SET(serverSockTCP, &recvSockSet);
-    FD_SET(serverSockUDP, &recvSockSet);
     maxDesc = max(maxDesc, serverSockTCP);
-    maxDesc = max(maxDesc, serverSockUDP);
     
     socklen_t size = sizeof(clientAddr);
     
@@ -95,7 +93,7 @@ int main(int argc, char *argv[])
         int ready = select(maxDesc + 1, &tempRecvSockSet, NULL, NULL, &selectTime);
         if (ready < 0)
         {
-            cout << "select() failed" << endl;
+            cout << "select() failed: " << errno << endl;
             break;
         }
         
@@ -336,13 +334,15 @@ void receiveDataTCP (int sock, char* inBuffer, int& size)
 	}else if (type == 'v'){
 		
 	}else if (type == 'o'){
-		
+		 cout << "User " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << " has left" << endl;
+		 return;
+		 //close(sock);
 	}else{
 		cout << "missing event handler" << endl;
 	}
 	msg = msg.substr(1, msg.length()-1);
 	
-    cout << "TCP Client: " << msg;
+    cout << "User " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << ": " << msg;
 	
 }
 
@@ -491,10 +491,18 @@ void sendDataTCP (int sock, char* buffer, int size)
         size = msg.length();
         bytesSent = send(sock, (char *) msg.c_str(), size, 0);
 		if (bytesSent < 0){
-			cout << "error in sending: sendDataTCP" << endl;
-			return;
+			cout << "error in sending: sendDataTCP: " << errno << endl;
+			
 		}
+		if (type == 'o'){ 
+				msg = "done";
+				bytesSent = send(sock, (char *) msg.c_str(), size, 0);
+				close(sock);
+				FD_CLR(sock,&recvSockSet);
+			}
+			return;
 	}else{
+		noSend = false;
 		return;
 	}	
     

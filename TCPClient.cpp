@@ -20,6 +20,8 @@ const int BUFFERSIZE = 512;   // Size the message buffers
 bool get = false;
 bool list = false;
 char type;
+bool noSend = false;
+bool noRecv = false;
 
 int main(int argc, char *argv[])
 {
@@ -81,21 +83,24 @@ int main(int argc, char *argv[])
     }
         
 
-    cout << "Please enter a message to be sent to the server ('logout' to terminate): ";
+    cout << "Please enter a message to be sent to the server: ";
     fgets(outBuffer, BUFFERSIZE, stdin);
-    while (strncmp(outBuffer, "/logout", 6) != 0)
+    int len;
+    
+	//while (strncmp(outBuffer, "/logout", 6) != 0)
+    while (1)
     {   
 		if(strncmp(outBuffer, "/", 1) == 0) {
-			cout << "found possible command" << endl;
-			int len;
+			//cout << "found possible command" << outBuffer << endl;
+			
 			for (int i = 0; i < BUFFERSIZE; i++) {
-				if (outBuffer[i] != '\0') {
+				if (outBuffer[i] != '\0' && outBuffer[i] != '\n') {
 					len++;
 				} else {
 					break;
 				}
 			}
-			
+			//cout << "len: " << len << endl;
 			if(strncmp(outBuffer, "/ready", len) == 0) {
 				type = 'r';
 			}else if(strncmp(outBuffer, "/leaderboard", len) == 0) {
@@ -104,7 +109,7 @@ int main(int argc, char *argv[])
 				type = 'p';
 			}else if(strncmp(outBuffer, "/help", len) == 0) {
 				type = 'h';
-				cout << "/ready\n/leaderboard\n/players\n/help\n/extra\n/kick <playerName>\n/question\n/<answer>\n/leave\n/logout\n" << endl;
+				//cout << "/ready\n/leaderboard\n/players\n/help\n/extra\n/kick <playerName>\n/question\n/<answer>\n/leave\n/logout\n" << endl;
 			}else if(strncmp(outBuffer, "/extra", len) == 0) {
 				type = 'e';
 			}else if(strncmp(outBuffer, "/kick <playerName>", len) == 0) {
@@ -125,26 +130,56 @@ int main(int argc, char *argv[])
 			type = 'm';
 		}
 		
+		if (type == 'm') {
+		
+		}else if (type == 'r'){
+			
+		}else if (type == 'l'){
+			
+		}else if (type == 'p'){
+			
+		}else if (type == 'h'){
+			cout << "/ready\n/leaderboard\n/players\n/help\n/extra\n/kick <playerName>\n/question\n/<answer>\n/leave\n/logout" << endl;
+			noSend = true;
+			noRecv = true;
+		}else if (type == 'e'){
+			
+		}else if (type == 'k'){
+			
+		}else if (type == 'q'){
+			
+		}else if (type == 'a'){
+			
+		}else if (type == 'v'){
+			
+		}else if (type == 'o'){
+			
+		}else{
+		cout << "missing event handler" << endl;
+	}
+		
 		// prepend type code
-		tempBuffer[0] = type;
-		for(int i = 1; i < BUFFERSIZE + 1; i++){
-			tempBuffer[i] = outBuffer[i-1];
+		if (!noSend){
+			tempBuffer[0] = type;
+			for(int i = 1; i < BUFFERSIZE + 1; i++){
+				tempBuffer[i] = outBuffer[i-1];
+			}
+			
+			if(strncmp(outBuffer, "get"	, 3) == 0){
+				//cout << "gets true" << endl;
+				get = true;
+			}
+			msgLength = strlen(tempBuffer);
+			
+			// Send the message to the server
+			bytesSent = send(sock, (char *) &tempBuffer, msgLength, 0);
+			if (bytesSent < 0 || bytesSent != msgLength)
+			{
+				cout << "error in sending" << endl;
+				exit(1); 
+			}
 		}
-		
-		if(strncmp(outBuffer, "get"	, 3) == 0){
-			//cout << "gets true" << endl;
-			get = true;
-		}
-        msgLength = strlen(tempBuffer);
-        
-        // Send the message to the server
-        bytesSent = send(sock, (char *) &tempBuffer, msgLength, 0);
-        if (bytesSent < 0 || bytesSent != msgLength)
-        {
-            cout << "error in sending" << endl;
-            exit(1); 
-        }
-		
+		noSend = false;
 		if(list){
 		
 			string msgReceived = "";
@@ -231,27 +266,47 @@ int main(int argc, char *argv[])
             cout << "Please enter a message to be sent to the server ('logout' to terminate): ";
             fgets(outBuffer, BUFFERSIZE, stdin);
         } */
-        
-        string msgReceived = "";
-			while(1){
-				memset(&inBuffer, 0, BUFFERSIZE);
-				bytesRecv = recv(sock, (char *) &inBuffer, BUFFERSIZE, 0);
-				string temp(inBuffer);
-				msgReceived += temp;
-				if(bytesRecv < BUFFERSIZE){
-					break;
+        if (type == 'o') {
+			break;
+		}
+        if(!noRecv){
+			string msgReceived = "";
+				while(1){
+					memset(&inBuffer, 0, BUFFERSIZE);
+					bytesRecv = recv(sock, (char *) &inBuffer, BUFFERSIZE, 0);
+					string temp(inBuffer);
+					msgReceived += temp;
+					if(bytesRecv < BUFFERSIZE){
+						break;
+					}
 				}
-			}
-			
-			cout << msgReceived;
-			
+				
+				cout << msgReceived;
+				
+		}
+		//cout << "type: " << type << endl;
+		
+		noRecv = false;
 			// Clear the buffers
             memset(&outBuffer, 0, BUFFERSIZE);
             memset(&inBuffer, 0, BUFFERSIZE);
-            cout << "Please enter a message to be sent to the server ('logout' to terminate): ";
+			memset(&tempBuffer, 0, BUFFERSIZE);
+            cout << "Please enter a message to be sent to the server: ";
             fgets(outBuffer, BUFFERSIZE, stdin);
     }
-
+	
+	if (type == 'o') {
+		string msgReceived = "";
+		while(1){
+			memset(&inBuffer, 0, BUFFERSIZE);
+			bytesRecv = recv(sock, (char *) &inBuffer, BUFFERSIZE, 0);
+			string temp(inBuffer);
+			msgReceived += temp;
+			if(bytesRecv < BUFFERSIZE){
+				break;
+			}
+		}
+	}
     // Close the socket
     close(sock);
     exit(0);
