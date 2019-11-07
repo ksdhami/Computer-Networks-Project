@@ -8,7 +8,6 @@ private:
 public:
   Player(std::string);
   Player();
-  ~Player();
   void setName(std::string username) {this -> username = username;};
   std::string getName(){return username;};
 };
