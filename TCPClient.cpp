@@ -16,6 +16,8 @@
 
 using namespace std;
 
+#define STDIN 0
+
 const int BUFFERSIZE = 512;   // Size the message buffers
 bool get = false;
 bool list = false;
@@ -92,8 +94,7 @@ int main(int argc, char *argv[])
 	
 	
 	
-    cout << "Please enter a message to be sent to the server: ";
-    fgets(outBuffer, BUFFERSIZE, stdin);
+    
     int len;
     
 	//while (strncmp(outBuffer, "/logout", 6) != 0)
@@ -103,7 +104,9 @@ int main(int argc, char *argv[])
 
     // Add the listening socket to the set
     FD_SET(sock, &recvSockSet);
+	FD_SET(STDIN, &recvSockSet);
     maxDesc = max(maxDesc, sock);
+	maxDesc = max(maxDesc, STDIN);
     
     socklen_t size = sizeof(serverAddr);
 		// copy the receive descriptors to the working set
@@ -127,10 +130,15 @@ int main(int argc, char *argv[])
             
 
             // Establish a connection
-            string msgReceived = "";
+            string msgReceived;
 			while(1){
 				memset(&inBuffer, 0, BUFFERSIZE);
 				bytesRecv = recv(sock, (char *) &inBuffer, 32, 0);
+				cout << "bytesrecv: " << bytesRecv << endl;
+				if (bytesRecv <= 0) {
+					cout << "got nothing" << endl;
+					continue;
+				}
 				string temp(inBuffer);
 				msgReceived += temp;
 				if(bytesRecv < 32){
@@ -144,22 +152,46 @@ int main(int argc, char *argv[])
             //FD_SET(clie, &recvSockSet);
             //maxDesc = max(maxDesc, clientSock);
            
-        } /*else {
-            processSockets(tempRecvSockSet);
-        }*/
+        } 
+		
+    //fgets(outBuffer, BUFFERSIZE, stdin);
+		if (FD_ISSET(STDIN, &tempRecvSockSet))
+        {
+			cout << "its set stdin" << endl;
+            // set the size of the client address structure
+            
+
+            // Establish a connection
+            string msgReceived;
+			getline(cin, msgReceived);
+			if(msgReceived.length() <= 0){
+				continue;
+			}
+			strcpy(outBuffer, msgReceived.c_str());
+			//cout << "Server: " << msgReceived;
+            
+            // Add the new connection to the receive socket set
+            //FD_SET(clie, &recvSockSet);
+            //maxDesc = max(maxDesc, clientSock);
+			
+           
+        } 
+		else{};
+		cout << "Please enter a message to be sent to the server: ";
 		
 		len = 0;
+		
 		if(strncmp(outBuffer, "/", 1) == 0) {
 			//cout << "found possible command" << outBuffer << endl;
 			
 			for (int i = 0; i < BUFFERSIZE; i++) {
-				if ((outBuffer[i] != '\0') && (outBuffer[i] != '\n') && (outBuffer[i] != " ")) {
+				if ((outBuffer[i] != '\0') && (outBuffer[i] != '\n') && (outBuffer[i] != ' ')) {
 					len++;
 				} else {
 					break;
 				}
 			}
-			cout << "len: " << len << endl;
+			//cout << "len: " << len << endl;
 			if(strncmp(outBuffer, "/ready", len) == 0) {
 				type = 'r';
 			}else if(strncmp(outBuffer, "/leaderboard", len) == 0) {
@@ -200,7 +232,7 @@ int main(int argc, char *argv[])
 		}else if (type == 'h'){
 			cout << "/ready\n/leaderboard\n/players\n/help\n/extra\n/kick <playerName>\n/question\n/<answer>\n/leave\n/logout" << endl;
 			noSend = true;
-			noRecv = true;
+			//noRecv = true;
 		}else if (type == 'e'){
 			
 		}else if (type == 'k'){
@@ -328,6 +360,7 @@ int main(int argc, char *argv[])
         if (type == 'o') {
 			break;
 		}
+		/*
         if(!noRecv){
 			string msgReceived = "";
 				while(1){
@@ -345,13 +378,13 @@ int main(int argc, char *argv[])
 		}
 		//cout << "type: " << type << endl;
 		
-		noRecv = false;
+		noRecv = false;*/
 			// Clear the buffers
             memset(&outBuffer, 0, BUFFERSIZE);
             memset(&inBuffer, 0, BUFFERSIZE);
 			memset(&tempBuffer, 0, BUFFERSIZE);
-            cout << "Please enter a message to be sent to the server: ";
-            fgets(outBuffer, BUFFERSIZE, stdin);
+            //cout << "Please enter a message to be sent to the server: ";
+            //fgets(outBuffer, BUFFERSIZE, stdin);
     }
 	
 	if (type == 'o') {
