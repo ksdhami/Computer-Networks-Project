@@ -2,6 +2,7 @@
 #include <string>
 #include <iostream>
 #include "Player.h"
+#include <vector> 
 
 class GameLobby{
 private:
