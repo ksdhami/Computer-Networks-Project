@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -Wall -g
+CXXFLAGS := -g -Wall
 LDFLAGS :=
 OBJFILES := TCPClient.o 
 TARGET := client

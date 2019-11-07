@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -Wall -g
+CXXFLAGS := -g -Wall
 LDFLAGS :=
 OBJFILES := SelectServer.o Question.o Quiz.o Player.o
 TARGET := server

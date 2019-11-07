@@ -21,7 +21,6 @@ private:
 public:
     Quiz(/* args */)
     {
-        // TODO: finish constructor
         setFailCounter(0);
         setPoints(0);
     }
@@ -79,12 +78,12 @@ public:
         if (getAnswerCorrect())
         {
             // cout << "Congratulations, you picked the right answer" << endl;
-            return "Congratulations, you picked the right answer";
+            return "Congratulations, you picked the right answer\n";
         }
         else
         {
             // cout << "You picked the wrong choice" << endl;
-            return "You picked the wrong choice";
+            return "You picked the wrong choice\n";
         }
     }
 
@@ -99,6 +98,10 @@ public:
         {
             incFailCounter();
             cout << "Fails = " << failCounter << "\n" << endl;
+            if (failCounter >= 3)
+            {
+                clearQuestionSet();
+            }
         }
     }
 
@@ -107,11 +110,18 @@ public:
     void setPoints(int pnt) { points = pnt; }
     void setMode(char mChar) { mode = mChar; }
     void setWasAnswerCorrect(bool ans) { answerCorrect = ans; }
+
     void clearResponsesAndLastQuestion() 
     { 
         responses.clear(); 
-        questionSet.pop_back();
+        if (!questionSet.empty())
+        {
+            questionSet.pop_back();
+        }   
     }
+
+    void clearQuestionSet() { questionSet.clear(); }
+
     void incPoints() { points++; }
     void incFailCounter() { failCounter++; }
 
@@ -140,10 +150,7 @@ public:
     int getPoints() { return points; }
     bool getAnswerCorrect() { return answerCorrect; }
     int getFailCounter() { return failCounter; }
-    string getQuestionFromClass() 
-    {
-        return questionSet.back().getQuestionsAndChoicesString();
-    }
+    string getQuestionFromClass() { return questionSet.back().getQuestionsAndChoicesString(); }
     bool isQuestionSetEmpty() { return questionSet.empty(); }
     vector<Question> getQuestionSet() { return questionSet; }
 
