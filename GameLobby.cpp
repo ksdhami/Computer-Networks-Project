@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string>
 #include <iostream>
+#include <vector>
 
 GameLobby::GameLobby(Player player) {
   list.push_back(player);
