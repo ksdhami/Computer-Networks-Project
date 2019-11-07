@@ -27,7 +27,7 @@ fd_set tempRecvSockSet;            // Temp. receive socket set for select()
 struct timeval timeout = {0, 10};  // The timeout value for select()
     struct timeval selectTime;
 fd_set recvSockSet;   // The set of descriptors for incoming connections
-int maxDesc = 0;      // The max descriptor
+int maxDesc = 1;      // The max descriptor
 	
 int main(int argc, char *argv[])
 {
@@ -89,13 +89,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
         
-	FD_ZERO(&recvSockSet);
-
-    // Add the listening socket to the set
-    FD_SET(sock, &recvSockSet);
-    maxDesc = max(maxDesc, sock);
-    
-    socklen_t size = sizeof(serverAddr);
+	
 	
 	
     cout << "Please enter a message to be sent to the server: ";
@@ -105,7 +99,13 @@ int main(int argc, char *argv[])
 	//while (strncmp(outBuffer, "/logout", 6) != 0)
     while (1)
     {   
-		/*
+		FD_ZERO(&recvSockSet);
+
+    // Add the listening socket to the set
+    FD_SET(sock, &recvSockSet);
+    maxDesc = max(maxDesc, sock);
+    
+    socklen_t size = sizeof(serverAddr);
 		// copy the receive descriptors to the working set
         memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
         
@@ -118,6 +118,34 @@ int main(int argc, char *argv[])
         {
             cout << "select() failed: " << errno << endl;
             break;
+        }
+		
+		if (FD_ISSET(sock, &tempRecvSockSet))
+        {
+			cout << "its set" << endl;
+            // set the size of the client address structure
+            
+
+            // Establish a connection
+            string msgReceived = "";
+			while(1){
+				memset(&inBuffer, 0, BUFFERSIZE);
+				bytesRecv = recv(sock, (char *) &inBuffer, 32, 0);
+				string temp(inBuffer);
+				msgReceived += temp;
+				if(bytesRecv < 32){
+					break;
+				}
+			}
+			
+			cout << "Server: " << msgReceived;
+            
+            // Add the new connection to the receive socket set
+            //FD_SET(clie, &recvSockSet);
+            //maxDesc = max(maxDesc, clientSock);
+           
+        } /*else {
+            processSockets(tempRecvSockSet);
         }*/
 		
 		len = 0;
@@ -125,7 +153,7 @@ int main(int argc, char *argv[])
 			//cout << "found possible command" << outBuffer << endl;
 			
 			for (int i = 0; i < BUFFERSIZE; i++) {
-				if ((outBuffer[i] != '\0') && (outBuffer[i] != '\n')) {
+				if ((outBuffer[i] != '\0') && (outBuffer[i] != '\n') && (outBuffer[i] != " ")) {
 					len++;
 				} else {
 					break;
@@ -147,7 +175,7 @@ int main(int argc, char *argv[])
 				type = 'k';
 			}else if(strncmp(outBuffer, "/question", len) == 0) {
 				type = 'q';
-			}else if(strncmp(outBuffer, "/<answer>", len) == 0) {
+			}else if(strncmp(outBuffer, "/answer", len) == 0) {
 				type = 'a';
 			}else if(strncmp(outBuffer, "/leave", len) == 0) {
 				type = 'v';
