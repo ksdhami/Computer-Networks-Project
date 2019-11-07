@@ -23,6 +23,12 @@ char type;
 bool noSend = false;
 bool noRecv = false;
 
+fd_set tempRecvSockSet;            // Temp. receive socket set for select()
+struct timeval timeout = {0, 10};  // The timeout value for select()
+    struct timeval selectTime;
+fd_set recvSockSet;   // The set of descriptors for incoming connections
+int maxDesc = 0;      // The max descriptor
+	
 int main(int argc, char *argv[])
 {
     int sock;                        // A socket descriptor
@@ -41,7 +47,8 @@ int main(int argc, char *argv[])
         cout << "Usage: " << argv[0] << " <Server IP> <Server Port>" << endl;
         exit(1);
     }
-
+	
+	
     // Create a TCP socket
     // * AF_INET: using address family "Internet Protocol address"
     // * SOCK_STREAM: Provides sequenced, reliable, bidirectional, connection-mode byte streams.
@@ -82,7 +89,15 @@ int main(int argc, char *argv[])
         exit(1);
     }
         
+	FD_ZERO(&recvSockSet);
 
+    // Add the listening socket to the set
+    FD_SET(sock, &recvSockSet);
+    maxDesc = max(maxDesc, sock);
+    
+    socklen_t size = sizeof(serverAddr);
+	
+	
     cout << "Please enter a message to be sent to the server: ";
     fgets(outBuffer, BUFFERSIZE, stdin);
     int len;
@@ -90,17 +105,33 @@ int main(int argc, char *argv[])
 	//while (strncmp(outBuffer, "/logout", 6) != 0)
     while (1)
     {   
+		/*
+		// copy the receive descriptors to the working set
+        memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
+        
+        // Select timeout has to be reset every time before select() is
+        // called, since select() may update the timeout parameter to
+        // indicate how much time was left.
+        selectTime = timeout;
+        int ready = select(maxDesc + 1, &tempRecvSockSet, NULL, NULL, &selectTime);
+        if (ready < 0)
+        {
+            cout << "select() failed: " << errno << endl;
+            break;
+        }*/
+		
+		len = 0;
 		if(strncmp(outBuffer, "/", 1) == 0) {
 			//cout << "found possible command" << outBuffer << endl;
 			
 			for (int i = 0; i < BUFFERSIZE; i++) {
-				if (outBuffer[i] != '\0' && outBuffer[i] != '\n') {
+				if ((outBuffer[i] != '\0') && (outBuffer[i] != '\n')) {
 					len++;
 				} else {
 					break;
 				}
 			}
-			//cout << "len: " << len << endl;
+			cout << "len: " << len << endl;
 			if(strncmp(outBuffer, "/ready", len) == 0) {
 				type = 'r';
 			}else if(strncmp(outBuffer, "/leaderboard", len) == 0) {
