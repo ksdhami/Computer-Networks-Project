@@ -121,7 +121,12 @@ public:
     }
 
     void clearQuestionSet() { questionSet.clear(); }
-    void clearTeam() { team.clear(); }
+    void clearTeam() 
+    { 
+        team.clear(); 
+        setPoints(0);
+        setFailCounter(0);
+    }
 
     void incPoints() { points++; }
     void incFailCounter() { failCounter++; }

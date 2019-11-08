@@ -3,10 +3,10 @@ Name11 4
 Name10 3
 Name6 3
 Name3 3
-192.168.0.13 3
-Name2 2
-Name5 2
 Name9 2
+Name5 2
+Name2 2
+192.168.0.13 2
 Name8 1
 Name4 1
 Name1 1

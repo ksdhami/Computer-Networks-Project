@@ -63,6 +63,9 @@ bool noSend = false;
 bool logoutRequest = false;
 bool missingEventHandler = false;
 
+vector<int> socks;
+vector<struct sockaddr_in> clients;
+
 void initServerTCP(int &, int port);
 void processSockets(fd_set);
 void sendDataTCP(int, char[], int);
@@ -152,10 +155,16 @@ int main(int argc, char *argv[])
         // First, process new connection request, if any.
         if (FD_ISSET(serverSockTCP, &tempRecvSockSet))
         {
+            //cout << "found a tcp client" <<endl;
+            // set the size of the client address structure
+
             // Establish a connection
             if ((clientSock = accept(serverSockTCP, (struct sockaddr *)&clientAddr, &size)) < 0)
                 break;
             cout << "Accepted a connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << endl;
+
+            clients.push_back(clientAddr);
+            socks.push_back(clientSock);
 
             Player player(inet_ntoa(clientAddr.sin_addr), to_string(clientAddr.sin_port));
             players.push_back(player);
@@ -359,6 +368,10 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     recMsg = string(inBuffer);
     cout << "Message from TCP Client: " << recMsg;
 
+    std::vector<int>::iterator it = find(socks.begin(), socks.end(), sock);
+    ;
+    int clientNum = std::distance(socks.begin(), it);
+
     type = recMsg.at(0);
     if (type == 'm')
     {
@@ -407,7 +420,7 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     {
         requestQuestionRepeat = true;
     }
-    else if (type == 'a' && quizStarted && questionSent)
+    else if (type == 'a' && quizStarted && questionSent && recMsg.length()>=9)
     {
         cout << "client replied with: " << recMsg << endl;
         cout << "client choice was: " << recMsg[9] << endl;
@@ -424,7 +437,7 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     }
     else if (type == 'o')
     {
-        cout << "User " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << " has left" << endl;
+        cout << "User " << inet_ntoa(clients[clientNum].sin_addr) << ":" << clients[clientNum].sin_port << " has left" << endl;
         return;
         //close(sock);
     }
@@ -446,6 +459,10 @@ void sendDataTCP(int sock, char *buffer, int size)
     string msg = message.first;
     int msgSize = message.second;
 
+    std::vector<int>::iterator it = find(socks.begin(), socks.end(), sock);
+    ;
+    int clientNum = std::distance(socks.begin(), it);
+
     if (gameOver)
     {
         endGameCleanup(sock, buffer, size, bytesSent);
@@ -465,12 +482,27 @@ void sendDataTCP(int sock, char *buffer, int size)
     }
     else if (!noSend)
     {
-        msg = "Server: " + msg;
-        size = msg.length();
-        bytesSent = send(sock, (char *)msg.c_str(), size, 0);
-        if (bytesSent < 0)
+        if (type == 'o')
         {
-            cout << "error in sending: sendDataTCP: " << errno << endl;
+            msg = "has left\n";
+        }
+        const char *tempAddr = inet_ntoa(clients[clientNum].sin_addr);
+        string temp2 = string(tempAddr);
+        string temp = "User ";
+        temp += temp2;
+        temp += ":";
+        temp += to_string(clients[clientNum].sin_port);
+        temp += ": ";
+        temp += msg;
+        size = temp.length();
+        for (int asock : socks)
+        {
+            //cout << "got in" << endl;
+            bytesSent = send(asock, (char *)temp.c_str(), size, 0);
+            if (bytesSent < 0)
+            {
+                cout << "error in sending: sendDataTCP: " << errno << endl;
+            }
         }
         if (type == 'o')
         {
@@ -478,6 +510,8 @@ void sendDataTCP(int sock, char *buffer, int size)
             bytesSent = send(sock, (char *)msg.c_str(), size, 0);
             close(sock);
             FD_CLR(sock, &recvSockSet);
+            clients.erase(clients.begin() + clientNum);
+            socks.erase(socks.begin() + clientNum);
         }
         return;
     }
