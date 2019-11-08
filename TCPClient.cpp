@@ -155,8 +155,9 @@ int main(int argc, char *argv[])
 				//cout << "aasdf" << endl;
 				memset(&inBuffer, 0, BUFFERSIZE);
 				continue;
-			cout << "Server: " << msgReceived;
+			
             }
+			cout << msgReceived;
             // Add the new connection to the receive socket set
             //FD_SET(clie, &recvSockSet);
             //maxDesc = max(maxDesc, clientSock);
@@ -171,21 +172,23 @@ int main(int argc, char *argv[])
             
 
             // Establish a connection
-            string msgReceived;
-			getline(cin, msgReceived);
+            memset(&outBuffer, 0, BUFFERSIZE);
+			read(STDIN, outBuffer, BUFFERSIZE);
+			/*string msgReceived;
 			if(msgReceived.length() <= 0){
+				cout << "no msg, moving on" << endl;
 				memset(&outBuffer, 0, BUFFERSIZE);
             memset(&inBuffer, 0, BUFFERSIZE);
 			memset(&tempBuffer, 0, BUFFERSIZE);
 				continue;
-			}
-			strcpy(outBuffer, msgReceived.c_str());
+			}*/
+			//strcpy(outBuffer, msgReceived.c_str());
 			//cout << "Server: " << msgReceived;
             
             // Add the new connection to the receive socket set
             //FD_SET(clie, &recvSockSet);
             //maxDesc = max(maxDesc, clientSock);
-			if(outBuffer[0] == '\0'){
+			if(outBuffer[0] == '\0' || outBuffer[0] == '\n'){
 			cout << "aasdfOut" << endl;
 			//memset(&outBuffer, 0, BUFFERSIZE);
 			memset(&outBuffer, 0, BUFFERSIZE);
@@ -199,13 +202,13 @@ int main(int argc, char *argv[])
 		else{processSockets();}
 		
 		if(outBuffer[0] == '\0'){
-			cout << "aasdfOut2" << endl;
+			//cout << "aasdfOut" << endl;
 			//memset(&outBuffer, 0, BUFFERSIZE);
 			memset(&outBuffer, 0, BUFFERSIZE);
             memset(&inBuffer, 0, BUFFERSIZE);
 			memset(&tempBuffer, 0, BUFFERSIZE);
 			continue;
-			}
+		}
 		
 		
 		
@@ -250,6 +253,7 @@ int main(int argc, char *argv[])
 				//continue;
 			}
 		}else{
+			cout << "found a msg" << endl;
 			type = 'm';
 		}
 		
@@ -283,7 +287,7 @@ int main(int argc, char *argv[])
 		//cout << "type: " << type << endl;
 		// prepend type code
 		if (!noSend){
-			
+			cout << "time to send" << endl;
 			tempBuffer[0] = type;
 			for(int i = 1; i < BUFFERSIZE + 1; i++){
 				tempBuffer[i] = outBuffer[i-1];
@@ -334,10 +338,10 @@ int main(int argc, char *argv[])
             memset(&outBuffer, 0, BUFFERSIZE);
             memset(&inBuffer, 0, BUFFERSIZE);
 			memset(&tempBuffer, 0, BUFFERSIZE);
-            //cout << "Please enter a message to be sent to the server: ";
-            //fgets(outBuffer, BUFFERSIZE, stdin);
-    }
-	cout << "Please enter a message to be sent to the server: ";
+
+    
+		cout << "Please enter a message to be sent to the server: ";
+	}
 	if (type == 'o') {
 		string msgReceived = "";
 		while(1){
