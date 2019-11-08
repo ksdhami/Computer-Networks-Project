@@ -121,6 +121,7 @@ public:
     }
 
     void clearQuestionSet() { questionSet.clear(); }
+    void clearTeam() { team.clear(); }
 
     void incPoints() { points++; }
     void incFailCounter() { failCounter++; }
@@ -153,6 +154,7 @@ public:
     string getQuestionFromClass() { return questionSet.back().getQuestionsAndChoicesString(); }
     bool isQuestionSetEmpty() { return questionSet.empty(); }
     vector<Question> getQuestionSet() { return questionSet; }
+    vector<Player> getTeam() { return team; }
 
     bool lastQuestion()
     {

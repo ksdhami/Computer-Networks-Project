@@ -15,16 +15,17 @@
 #include <stdio.h>
 #include <fstream>
 #include <algorithm>
+#include <utility>
 #include "Quiz.cpp"
 
 // #define QUESTIONFILE "questions.txt"
 #define QUESTIONFILE "qq.txt"
-#define FAIL 2
+#define LEADERBOARDFILE "leaderboard.txt"
 
 using namespace std;
 
 const int BUFFERSIZE = 512; // Size the message buffers
-const int MAXPENDING = 10; // Maximum pending connections
+const int MAXPENDING = 10;  // Maximum pending connections
 
 fd_set recvSockSet; // The set of descriptors for incoming connections
 int maxDesc = 0;    // The max descriptor
@@ -42,15 +43,20 @@ fd_set tempRecvSockSet; // Temp. receive socket set for select()
 bool unknownCommandFlag = false;
 string unknownCommand;
 
-Quiz quiz;                          // quiz game object
-bool quizStarted = false;           // game started
-bool readQuestionsFromFile = false; // question file read in object made
-bool playerReady = false;           // player ready to play game
-bool requestQuestionRepeat = false; // client requested question again
-bool questionSent = false;          // client got question in game
-bool answerRec = false;             // server received answers from participants
-bool gameOver = false;              // game is over
-vector<Player> players;             // players in server; both in game and not in game
+Quiz quiz;                             // quiz game object
+bool quizStarted = false;              // game started
+bool readQuestionsFromFile = false;    // question file read in object made
+bool playerReady = false;              // player ready to play game
+bool requestQuestionRepeat = false;    // client requested question again
+bool questionSent = false;             // client got question in game
+bool answerRec = false;                // server received answers from participants
+bool gameOver = false;                 // game is over
+vector<Player> players;                // players in server; both in game and not in game
+vector<pair<string, int> > leaderboard; // key(name):value(score) pair for leaderboard
+bool seeLeaderboard = false;           // user requests to see leaderboard
+bool leaderboardLoaded = false;
+bool seePlayers = false;
+
 char type;
 string recMsg;
 bool noSend = false;
@@ -65,6 +71,9 @@ void receiveDataTCP(int, char[], int &);
 void readQuestionFile();
 void endGame(int sock, char *buffer, int size, int bytesSent);
 pair<string, int> getGameString();
+void loadLeaderboard();
+void updateLeaderboard(int score, string name);
+bool sortPairSecond(const pair<string,int> &a, const pair<string,int> &b);
 
 // https://stackoverflow.com/questions/15063301/how-can-i-find-an-object-in-a-vector-based-on-class-properties
 class FindAttribute
@@ -118,6 +127,12 @@ int main(int argc, char *argv[])
             readQuestionsFromFile = true;
         }
 
+        if (!leaderboardLoaded)
+        {
+            cout << "Leaderboard Loading\n" << endl;
+            loadLeaderboard();
+        }
+        
         // copy the receive descriptors to the working set
         memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
 
@@ -193,6 +208,7 @@ void readQuestionFile()
     if (!fin)
     {
         cerr << "error: open file for input failed!" << endl;
+        return;
     }
 
     while (getline(fin, line))
@@ -361,9 +377,17 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     }
     else if (type == 'l')
     {
+        if(!seeLeaderboard)
+        {
+            seeLeaderboard = true;
+        }
     }
     else if (type == 'p')
     {
+        if(!playerReady)
+        {
+            seePlayers = true;
+        }   
     }
     else if (type == 'h')
     {
@@ -405,7 +429,6 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     recMsg = recMsg.substr(1, recMsg.length() - 1);
 
     cout << "User " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << ": " << recMsg;
-
 
     /*
 
@@ -489,12 +512,12 @@ void sendDataTCP(int sock, char *buffer, int size)
         }
         return;
     }
-    else if(noSend)
+    else if (noSend)
     {
         noSend = false;
         return;
     }
-    else
+    else // send message to user
     {
         bytesSent = send(sock, (char *)msg.c_str(), msgSize, 0);
         cout << to_string(bytesSent) << endl;
@@ -509,6 +532,7 @@ void sendDataTCP(int sock, char *buffer, int size)
 void endGame(int sock, char *buffer, int size, int bytesSent)
 {
     string msg = "GAME OVER\n";
+    // TODO: print leaderboard
     msg += "Points: " + to_string(quiz.getPoints()) + " Fails: " + to_string(quiz.getFailCounter()) + "\n";
     int sizeMsg = msg.length();
     bytesSent = send(sock, (char *)msg.c_str(), sizeMsg, 0);
@@ -517,6 +541,9 @@ void endGame(int sock, char *buffer, int size, int bytesSent)
         cout << "error in sending: sendDataTCP" << endl;
         return;
     }
+    quiz.clearTeam();
+    readQuestionsFromFile = false;
+    quizStarted = false;
     playerReady = false;
     gameOver = false;
 }
@@ -532,6 +559,51 @@ pair<string, int> getGameString()
         gameMsgSize += gameMsg.length();
         quizStarted = true;
         cout << "Quiz started: " << quizStarted << endl;
+    }
+
+    if (!playerReady && seeLeaderboard)
+    {
+        cout << "getting leaderboard" << endl;
+        gameMsg += "\nLeaderboard\n";
+
+        int index = 10;
+
+        if (leaderboard.size() < 10)
+        {
+            index = leaderboard.size();
+        }
+
+        sort(leaderboard.begin(), leaderboard.end(), sortPairSecond);
+
+        for (int i = 0; i < index; i++) 
+        {
+            gameMsg += to_string(i+1);
+            gameMsg +=  ") ";
+            gameMsg += leaderboard.at(i).first;
+            gameMsg += " - ";
+            gameMsg += to_string(leaderboard.at(i).second);
+            gameMsg += "\n";
+	    }
+
+        cout << "Send to client leaderboard: " << gameMsg <<endl;
+        gameMsgSize += gameMsg.length();
+        seeLeaderboard = false;
+    }
+
+    if (!playerReady && seePlayers)
+    {
+        cout << "getting players" << endl;
+        gameMsg += "\nPlayers in lobby\n";
+
+        for (int i = 0; i < players.size(); i++) 
+        {
+            gameMsg += players.at(i).getUsername();
+            gameMsg += "\n";
+	    }
+
+        cout << "Send to client player names: " << gameMsg <<endl;
+        gameMsgSize += gameMsg.length();
+        seePlayers = false;
     }
 
     if (quizStarted && questionSent && requestQuestionRepeat)
@@ -579,4 +651,55 @@ pair<string, int> getGameString()
     }
 
     return make_pair(gameMsg, gameMsgSize);
+}
+
+void loadLeaderboard()
+{
+    string line;      // line from file
+    string name;
+    int score;
+
+    ifstream fin(LEADERBOARDFILE, ios::in);
+
+    // file not found error
+    if (!fin)
+    {
+        cerr << "error: open file for input failed!" << endl;
+        return;
+    }
+
+    while (fin >> name >> score)
+    {
+        cout << "Name: " << name << "\nScore: " << score << "\n" << endl;
+        leaderboard.push_back(make_pair(name, score));
+    }
+
+    fin.close();
+    leaderboardLoaded = true;
+}
+
+void updateLeaderboard(int score, string name)
+{
+    // TODO: replace score if name exists 
+    int replaceIndex = 0;
+    int index = 0;
+    while(index < leaderboard.size())
+    {
+        if (leaderboard.at(index).second > score)
+        {
+            replaceIndex = index;
+            leaderboard.erase(leaderboard.begin() + index);
+        }
+        else
+        {
+            return;
+        }
+        
+        index--;
+    }
+}
+
+bool sortPairSecond(const pair<string,int> &a, const pair<string,int> &b) 
+{ 
+    return (a.second > b.second); 
 }
