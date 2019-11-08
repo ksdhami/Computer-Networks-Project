@@ -350,7 +350,6 @@ void sendDataTCP (int sock, char* buffer, int size)
 {
     int bytesSent = 0;                   // Number of bytes sent
     
-	
     // Sent the data
     //bytesSent += send(sock, (char *) buffer + bytesSent, size - bytesSent, 0);
 	
