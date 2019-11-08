@@ -31,6 +31,8 @@ struct timeval timeout = {0, 10};  // The timeout value for select()
 fd_set recvSockSet;   // The set of descriptors for incoming connections
 int maxDesc = 1;      // The max descriptor
 	
+void processSockets();
+
 int main(int argc, char *argv[])
 {
     int sock;                        // A socket descriptor
@@ -96,7 +98,7 @@ int main(int argc, char *argv[])
 	
     
     int len;
-    
+    cout << "Please enter a message to be sent to the server: ";
 	//while (strncmp(outBuffer, "/logout", 6) != 0)
     while (1)
     {   
@@ -123,9 +125,11 @@ int main(int argc, char *argv[])
             break;
         }
 		
+		
+		
 		if (FD_ISSET(sock, &tempRecvSockSet))
         {
-			cout << "its set" << endl;
+			//cout << "its set" << endl;
             // set the size of the client address structure
             
 
@@ -133,25 +137,30 @@ int main(int argc, char *argv[])
             string msgReceived;
 			while(1){
 				memset(&inBuffer, 0, BUFFERSIZE);
-				bytesRecv = recv(sock, (char *) &inBuffer, 32, 0);
+				bytesRecv = recv(sock, (char *) &inBuffer, BUFFERSIZE, 0);
 				cout << "bytesrecv: " << bytesRecv << endl;
 				if (bytesRecv <= 0) {
 					cout << "got nothing" << endl;
-					continue;
+					break;
 				}
 				string temp(inBuffer);
 				msgReceived += temp;
-				if(bytesRecv < 32){
+				if(bytesRecv < BUFFERSIZE){
 					break;
 				}
+				
+				
 			}
-			
+			if(inBuffer[0] == '\0'){
+				//cout << "aasdf" << endl;
+				memset(&inBuffer, 0, BUFFERSIZE);
+				continue;
 			cout << "Server: " << msgReceived;
-            
+            }
             // Add the new connection to the receive socket set
             //FD_SET(clie, &recvSockSet);
             //maxDesc = max(maxDesc, clientSock);
-           
+			
         } 
 		
     //fgets(outBuffer, BUFFERSIZE, stdin);
@@ -165,6 +174,9 @@ int main(int argc, char *argv[])
             string msgReceived;
 			getline(cin, msgReceived);
 			if(msgReceived.length() <= 0){
+				memset(&outBuffer, 0, BUFFERSIZE);
+            memset(&inBuffer, 0, BUFFERSIZE);
+			memset(&tempBuffer, 0, BUFFERSIZE);
 				continue;
 			}
 			strcpy(outBuffer, msgReceived.c_str());
@@ -173,11 +185,31 @@ int main(int argc, char *argv[])
             // Add the new connection to the receive socket set
             //FD_SET(clie, &recvSockSet);
             //maxDesc = max(maxDesc, clientSock);
-			
+			if(outBuffer[0] == '\0'){
+			cout << "aasdfOut" << endl;
+			//memset(&outBuffer, 0, BUFFERSIZE);
+			memset(&outBuffer, 0, BUFFERSIZE);
+            memset(&inBuffer, 0, BUFFERSIZE);
+			memset(&tempBuffer, 0, BUFFERSIZE);
+			continue;
+			}
            
         } 
-		else{};
-		cout << "Please enter a message to be sent to the server: ";
+		
+		else{processSockets();}
+		
+		if(outBuffer[0] == '\0'){
+			cout << "aasdfOut2" << endl;
+			//memset(&outBuffer, 0, BUFFERSIZE);
+			memset(&outBuffer, 0, BUFFERSIZE);
+            memset(&inBuffer, 0, BUFFERSIZE);
+			memset(&tempBuffer, 0, BUFFERSIZE);
+			continue;
+			}
+		
+		
+		
+		
 		
 		len = 0;
 		
@@ -248,18 +280,15 @@ int main(int argc, char *argv[])
 		}else{
 		cout << "missing event handler" << endl;
 	}
-		
+		//cout << "type: " << type << endl;
 		// prepend type code
 		if (!noSend){
+			
 			tempBuffer[0] = type;
 			for(int i = 1; i < BUFFERSIZE + 1; i++){
 				tempBuffer[i] = outBuffer[i-1];
 			}
 			
-			if(strncmp(outBuffer, "get"	, 3) == 0){
-				//cout << "gets true" << endl;
-				get = true;
-			}
 			msgLength = strlen(tempBuffer);
 			
 			// Send the message to the server
@@ -268,95 +297,17 @@ int main(int argc, char *argv[])
 			{
 				cout << "error in sending" << endl;
 				exit(1); 
+			}else{
+				cout << "bytes sent: " << bytesSent << endl;
 			}
+			
 		}
 		noSend = false;
-		if(list){
 		
-			string msgReceived = "";
-			while(1){
-				memset(&inBuffer, 0, BUFFERSIZE);
-				bytesRecv = recv(sock, (char *) &inBuffer, 32, 0);
-				string temp(inBuffer);
-				msgReceived += temp;
-				if(bytesRecv < 32){
-					break;
-				}
-			}
-			
-			cout << "Server: " << msgReceived;
-		}
 		
-		if(get){
-            memset(&inBuffer, 0, BUFFERSIZE);
-			bytesRecv = recv(sock, (char *) &inBuffer, 32, 0);
-            string name(inBuffer);
-            //cout << "name = " << name << endl;
-            //cout << "name = " << name << endl;
-            
-            
-            
-			ofstream outfile(name, ofstream::binary);
-			int bytesRecvTotal = 0;
-			while(1){
-                
-				memset(&inBuffer, 0, BUFFERSIZE);
-				bytesRecv = recv(sock, (char *) &inBuffer, 32, 0);
-                bytesRecvTotal += bytesRecv;
-				//string temp(inBuffer);
-				//msgReceived += temp;
-				outfile.write(inBuffer, 32);
-				if(bytesRecv < 32){
-					break;
-				}
-			}
-			cout << "File saved in " << name << " (" << bytesRecvTotal << " bytes)" << endl;
-			memset(&outBuffer, 0, BUFFERSIZE);
-			/* outBuffer[0] = 'd';
-			bytesSent = send(sock, (char*) &outBuffer, 1, 0);
-			if (bytesSent < 0 || bytesSent != 1)
-			{
-				cout << "error in sending" << endl;
-				exit(1); 
-			} */
-			
-			/*int sizeOfFile = msgReceived.length();
-			
-			char* fileBuffer = new char[sizeOfFile];
-			strcpy(fileBuffer, msgReceived.c_str());
-			
-			outfile.write(fileBuffer, sizeOfFile);
-			
-			delete[] fileBuffer;*/
-			
-			outfile.close();
-			
-			//get = false;
-		}
         
         
-        /*if (!get) {
-            string msgReceived = "";
-			while(1){
-				memset(&inBuffer, 0, BUFFERSIZE);
-				bytesRecv = recv(sock, (char *) &inBuffer, 32, 0);
-				string temp(inBuffer);
-				msgReceived += temp;
-				if(bytesRecv < 32){
-					break;
-				}
-			}
-			
-			cout << "Server: " << msgReceived;
-        
-		
-
-            // Clear the buffers
-            memset(&outBuffer, 0, BUFFERSIZE);
-            memset(&inBuffer, 0, BUFFERSIZE);
-            cout << "Please enter a message to be sent to the server ('logout' to terminate): ";
-            fgets(outBuffer, BUFFERSIZE, stdin);
-        } */
+       
         if (type == 'o') {
 			break;
 		}
@@ -386,7 +337,7 @@ int main(int argc, char *argv[])
             //cout << "Please enter a message to be sent to the server: ";
             //fgets(outBuffer, BUFFERSIZE, stdin);
     }
-	
+	cout << "Please enter a message to be sent to the server: ";
 	if (type == 'o') {
 		string msgReceived = "";
 		while(1){
@@ -399,8 +350,16 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
+	
     // Close the socket
     close(sock);
     exit(0);
+	
+}
+
+void processSockets(){
+	
+	
+	
 }
 
