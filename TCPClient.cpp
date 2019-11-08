@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
         cout << "Usage: " << argv[0] << " <Server IP> <Server Port>" << endl;
         exit(1);
     }
-	cout << "args good" << endl;
+	
 	
     // Create a TCP socket
     // * AF_INET: using address family "Internet Protocol address"
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
         cout << "socket() failed" << endl;
         exit(1);
     }
-	cout << "socket good" << endl;
+	
     // Free up the port before binding
     // * sock: the socket just created
     // * SOL_SOCKET: set the protocol level at the socket level
@@ -75,14 +75,14 @@ int main(int argc, char *argv[])
         cout << "setsockopt() failed" << endl;
         exit(1);
     }
-    cout << "setsockopt good" << endl;
+    
     // Initialize the server information
     // Note that we can't choose a port less than 1023 if we are not privileged users (root)
     memset(&serverAddr, 0, sizeof(serverAddr));         // Zero out the structure
     serverAddr.sin_family = AF_INET;                    // Use Internet address family
     serverAddr.sin_port = htons(atoi(argv[2]));         // Server port number
     serverAddr.sin_addr.s_addr = inet_addr(argv[1]);    // Server IP address
-    cout << "init server good" << endl;
+    
     // Connect to the server
     // * sock: the socket for this connection
     // * serverAddr: the server address
@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
         cout << "connect() failed" << endl;
         exit(1);
     }
-    cout << "connected" << endl;
+    
 	
 	
 	
@@ -138,9 +138,9 @@ int main(int argc, char *argv[])
 			while(1){
 				memset(&inBuffer, 0, BUFFERSIZE);
 				bytesRecv = recv(sock, (char *) &inBuffer, BUFFERSIZE, 0);
-				cout << "bytesrecv: " << bytesRecv << endl;
+				//cout << "bytesrecv: " << bytesRecv << endl;
 				if (bytesRecv <= 0) {
-					cout << "got nothing" << endl;
+					//cout << "got nothing" << endl;
 					break;
 				}
 				string temp(inBuffer);
@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
     //fgets(outBuffer, BUFFERSIZE, stdin);
 		if (FD_ISSET(STDIN, &tempRecvSockSet))
         {
-			cout << "its set stdin" << endl;
+			//cout << "its set stdin" << endl;
             // set the size of the client address structure
             
 
@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
             //FD_SET(clie, &recvSockSet);
             //maxDesc = max(maxDesc, clientSock);
 			if(outBuffer[0] == '\0' || outBuffer[0] == '\n'){
-			cout << "aasdfOut" << endl;
+			//cout << "aasdfOut" << endl;
 			//memset(&outBuffer, 0, BUFFERSIZE);
 			memset(&outBuffer, 0, BUFFERSIZE);
             memset(&inBuffer, 0, BUFFERSIZE);
@@ -253,7 +253,7 @@ int main(int argc, char *argv[])
 				//continue;
 			}
 		}else{
-			cout << "found a msg" << endl;
+			//cout << "found a msg" << endl;
 			type = 'm';
 		}
 		
@@ -287,7 +287,7 @@ int main(int argc, char *argv[])
 		//cout << "type: " << type << endl;
 		// prepend type code
 		if (!noSend){
-			cout << "time to send" << endl;
+			//cout << "time to send" << endl;
 			tempBuffer[0] = type;
 			for(int i = 1; i < BUFFERSIZE + 1; i++){
 				tempBuffer[i] = outBuffer[i-1];
@@ -306,7 +306,7 @@ int main(int argc, char *argv[])
 				cout << "error in sending" << endl;
 				exit(1); 
 			}else{
-				cout << "bytes sent: " << bytesSent << endl;
+				//cout << "bytes sent: " << bytesSent << endl;
 			}
 			
 		}
