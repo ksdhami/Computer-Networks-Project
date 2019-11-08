@@ -1,7 +1,7 @@
 /*
  * A simple TCP select server that accepts multiple connections and echo message back to the clients
  * For use in CPSC 441 lectures
- * Instructor: Prof. Mea Wang 
+ * Instructor: Prof. Mea Wang
  */
 
 #include <iostream>
@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <utility>
 #include "Quiz.cpp"
+#include <time.h>  // for timer
 
 #define QUESTIONFILE "qq.txt"
 // #define QUESTIONFILE "questions.txt"
@@ -56,12 +57,17 @@ vector<pair<string, int> > leaderboard; // key(name):value(score) pair for leade
 bool seeLeaderboard = false;           // user requests to see leaderboard
 bool leaderboardLoaded = false;
 bool seePlayers = false;
+bool chattingTime = true;       // not used yet
+bool answeringTime = false;     // not used yet
 
 char type;
 string recMsg;
 bool noSend = false;
 bool logoutRequest = false;
 bool missingEventHandler = false;
+
+time_t start, countdown, previousSecond, current, timeLeft; // for timer
+
 
 vector<int> socks;
 vector<struct sockaddr_in> clients;
@@ -122,7 +128,6 @@ int main(int argc, char *argv[])
     // Run the server until a "terminate" command is received)
     while (!terminated)
     {
-
         // read file containing questions
         if (!readQuestionsFromFile)
         {
@@ -135,60 +140,142 @@ int main(int argc, char *argv[])
             cout << "Leaderboard Loading\n" << endl;
             loadLeaderboard();
         }
-        
-        // copy the receive descriptors to the working set
-        memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
 
-        // Select timeout has to be reset every time before select() is
-        // called, since select() may update the timeout parameter to
-        // indicate how much time was left.
-        selectTime = timeout;
-        int ready = select(maxDesc + 1, &tempRecvSockSet, NULL, NULL, &selectTime);
-        if (ready < 0)
-        {
-            cout << "select() failed" << endl;
-            break;
-        }
 
-        TCPInc = false;
+////TIMER
+        if (quizStarted) {
+                start = time(0);  // current time
+                //if chatting time bool = true
+                    countdown = start + 30;  // set countdown to 30 seconds
+                // else if answer time bool = true
+                    // countdown = start + 5;
+                previousSecond = countdown - start;  // used so it doesn't print multiple times in one second
+                timeLeft = previousSecond;
 
-        // First, process new connection request, if any.
-        if (FD_ISSET(serverSockTCP, &tempRecvSockSet))
-        {
-            //cout << "found a tcp client" <<endl;
-            // set the size of the client address structure
 
-            // Establish a connection
-            if ((clientSock = accept(serverSockTCP, (struct sockaddr *)&clientAddr, &size)) < 0)
+                cout << "You have " << previousSecond << " seconds." << endl;
+
+                while (timeLeft > 0) {
+                    current = time(0);
+                     timeLeft = countdown - current;
+                    if (timeLeft != previousSecond) {
+                         cout << timeLeft << " seconds left!" << endl;
+                         previousSecond = timeLeft;
+////
+                    }
+                          // copy the receive descriptors to the working set
+                        memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
+
+                        // Select timeout has to be reset every time before select() is
+                        // called, since select() may update the timeout parameter to
+                        // indicate how much time was left.
+                        selectTime = timeout;
+                        int ready = select(maxDesc + 1, &tempRecvSockSet, NULL, NULL, &selectTime);
+                        if (ready < 0)
+                        {
+                            cout << "select() failed" << endl;
+                            break;
+                        }
+
+                        TCPInc = false;
+
+                        // First, process new connection request, if any.
+                        if (FD_ISSET(serverSockTCP, &tempRecvSockSet))
+                        {
+                            //cout << "found a tcp client" <<endl;
+                            // set the size of the client address structure
+
+                            // Establish a connection
+                            if ((clientSock = accept(serverSockTCP, (struct sockaddr *)&clientAddr, &size)) < 0)
+                                break;
+                             cout << "Accepted a connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << endl;
+
+                            clients.push_back(clientAddr);
+                            socks.push_back(clientSock);
+
+                            Player player(inet_ntoa(clientAddr.sin_addr), to_string(clientAddr.sin_port));
+                            players.push_back(player);
+                            cout << "Player added to server vector: " << players.back().getUsername() << " with password: " << players.back().getPassword() << endl;
+
+                            // Add the new connection to the receive socket set
+                            FD_SET(clientSock, &recvSockSet);
+                            maxDesc = max(maxDesc, clientSock);
+                            TCPInc = true;
+                        }
+                        else
+                        {
+                            processSockets(tempRecvSockSet);
+                        }
+
+                        // Then process messages waiting at each ready socket
+
+                        if (!~(TCPInc))
+                        {
+                            processSockets(tempRecvSockSet);
+                        }
+
+                        TCPInc = false;
+                } // inner while loop
+                quizStarted = false; ////// test to stop timer from looping,
+                playerReady = false; ////// remove later
+        } // if in game statement
+        else {
+            // copy the receive descriptors to the working set
+             memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
+
+            // Select timeout has to be reset every time before select() is
+            // called, since select() may update the timeout parameter to
+            // indicate how much time was left.
+            selectTime = timeout;
+            int ready = select(maxDesc + 1, &tempRecvSockSet, NULL, NULL, &selectTime);
+            if (ready < 0)
+            {
+                cout << "select() failed" << endl;
                 break;
-            cout << "Accepted a connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << endl;
+            }
 
-            clients.push_back(clientAddr);
-            socks.push_back(clientSock);
+            TCPInc = false;
 
-            Player player(inet_ntoa(clientAddr.sin_addr), to_string(clientAddr.sin_port));
-            players.push_back(player);
-            cout << "Player added to server vector: " << players.back().getUsername() << " with password: " << players.back().getPassword() << endl;
+            // First, process new connection request, if any.
+            if (FD_ISSET(serverSockTCP, &tempRecvSockSet))
+            {
+                //cout << "found a tcp client" <<endl;
+                // set the size of the client address structure
 
-            // Add the new connection to the receive socket set
-            FD_SET(clientSock, &recvSockSet);
-            maxDesc = max(maxDesc, clientSock);
-            TCPInc = true;
-        }
-        else
-        {
-            processSockets(tempRecvSockSet);
-        }
+                // Establish a connection
+                if ((clientSock = accept(serverSockTCP, (struct sockaddr *)&clientAddr, &size)) < 0)
+                break;
+                cout << "Accepted a connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << endl;
 
-        // Then process messages waiting at each ready socket
+                clients.push_back(clientAddr);
+                socks.push_back(clientSock);
 
-        if (!~(TCPInc))
-        {
-            processSockets(tempRecvSockSet);
-        }
+                Player player(inet_ntoa(clientAddr.sin_addr), to_string(clientAddr.sin_port));
+                players.push_back(player);
+                cout << "Player added to server vector: " << players.back().getUsername() << " with password: " << players.back().getPassword() << endl;
 
-        TCPInc = false;
-    }
+                // Add the new connection to the receive socket set
+                FD_SET(clientSock, &recvSockSet);
+                maxDesc = max(maxDesc, clientSock);
+                TCPInc = true;
+            }
+            else
+            {
+                processSockets(tempRecvSockSet);
+            }
+
+            // Then process messages waiting at each ready socket
+
+            if (!~(TCPInc))
+            {
+                processSockets(tempRecvSockSet);
+            }
+
+            TCPInc = false;
+
+        } // else statement
+
+    } // outer while loop
 
     // Close the connections with the client
     for (int sock = 0; sock <= maxDesc; sock++)
@@ -401,7 +488,7 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
         if(!playerReady)
         {
             seePlayers = true;
-        }   
+        }
     }
     else if (type == 'h')
     {
@@ -422,14 +509,20 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     }
     else if (type == 'a' && quizStarted && questionSent && recMsg.length()>=9)
     {
-        cout << "client replied with: " << recMsg << endl;
-        cout << "client choice was: " << recMsg[9] << endl;
-        quiz.addResponse(tolower(recMsg[9]));
-        // TODO: change so wait for all teams response or timer expire
-        if(quiz.getResponses().size() == quiz.getTeam().size())
-        {
-            answerRec = true;
-        }
+ //       if (answeringTime) {
+            cout << "client replied with: " << recMsg << endl;
+            cout << "client choice was: " << recMsg[9] << endl;
+            quiz.addResponse(tolower(recMsg[9]));
+            // TODO: change so wait for all teams response or timer expire
+            if(quiz.getResponses().size() == quiz.getTeam().size())
+            {
+                answerRec = true;
+            }
+  //      }
+  //      else
+  //      {
+  //          cout << "you cannot answer yet" << endl;
+  //      }
     }
     else if (type == 'v')
     {
@@ -538,7 +631,7 @@ void endGameCleanup(int sock, char *buffer, int size, int bytesSent)
     string msg = "GAME OVER\n";
     // TODO: print leaderboard
     msg += "Points: " + to_string(quiz.getPoints()) + " Fails: " + to_string(quiz.getFailCounter()) + "\n";
-    
+
     updateLeaderboard(quiz.getPoints(), quiz.getTeam().front().getUsername());
 
     msg += "\nLeaderboard\n";
@@ -550,7 +643,7 @@ void endGameCleanup(int sock, char *buffer, int size, int bytesSent)
         index = leaderboard.size();
     }
 
-    for (int i = 0; i < index; i++) 
+    for (int i = 0; i < index; i++)
     {
         msg += to_string(i+1);
         msg +=  ") ";
@@ -602,7 +695,7 @@ pair<string, int> gameMessage()
             index = leaderboard.size();
         }
 
-        for (int i = 0; i < index; i++) 
+        for (int i = 0; i < index; i++)
         {
             gameMsg += to_string(i+1);
             gameMsg +=  ") ";
@@ -610,7 +703,7 @@ pair<string, int> gameMessage()
             gameMsg += " - ";
             gameMsg += to_string(leaderboard.at(i).second);
             gameMsg += "\n";
-	    }
+            }
 
         cout << "Send to client leaderboard: " << gameMsg <<endl;
         gameMsgSize += gameMsg.length();
@@ -622,11 +715,11 @@ pair<string, int> gameMessage()
         cout << "getting players" << endl;
         gameMsg += "\nPlayers in lobby\n";
 
-        for (int i = 0; i < players.size(); i++) 
+        for (int i = 0; i < players.size(); i++)
         {
             gameMsg += players.at(i).getUsername();
             gameMsg += "\n";
-	    }
+            }
 
         cout << "Send to client player names: " << gameMsg <<endl;
         gameMsgSize += gameMsg.length();
@@ -715,9 +808,9 @@ void updateLeaderboard(int score, string name)
 
     int index;
 
-    for (int i = 0; i < leaderboard.size(); i++) 
+    for (int i = 0; i < leaderboard.size(); i++)
     {
-        if (leaderboard.at(i).first == name) 
+        if (leaderboard.at(i).first == name)
         {
             index = i;
             cout << "index: " << to_string(index) << endl;
@@ -737,12 +830,12 @@ void updateLeaderboard(int score, string name)
 
     // write updated leaderboard to file
     fstream outFile;
-    
+
     outFile.open(LEADERBOARDFILE, ios::trunc | ios::out);
 
     string newLeaderBoard = "";
 
-    for (int i = 0; i < leaderboard.size(); i++) 
+    for (int i = 0; i < leaderboard.size(); i++)
     {
         newLeaderBoard += leaderboard.at(i).first;
         newLeaderBoard += " ";
@@ -753,7 +846,7 @@ void updateLeaderboard(int score, string name)
     outFile << newLeaderBoard;
     outFile.close();
 
-    // TODO: replace score if name exists 
+    // TODO: replace score if name exists
     // int replaceIndex = 0;
     // int index = 0;
     // while(index < leaderboard.size())
@@ -767,12 +860,12 @@ void updateLeaderboard(int score, string name)
     //     {
     //         return;
     //     }
-        
+
     //     index--;
     // }
 }
 
-bool sortPairSecond(const pair<string,int> &a, const pair<string,int> &b) 
-{ 
-    return (a.second > b.second); 
+bool sortPairSecond(const pair<string,int> &a, const pair<string,int> &b)
+{
+    return (a.second > b.second);
 }
