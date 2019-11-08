@@ -155,6 +155,7 @@ public:
     bool isQuestionSetEmpty() { return questionSet.empty(); }
     vector<Question> getQuestionSet() { return questionSet; }
     vector<Player> getTeam() { return team; }
+    vector<char> getResponses() { return responses; }
 
     bool lastQuestion()
     {

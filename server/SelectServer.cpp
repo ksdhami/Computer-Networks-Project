@@ -18,8 +18,8 @@
 #include <utility>
 #include "Quiz.cpp"
 
-// #define QUESTIONFILE "questions.txt"
 #define QUESTIONFILE "qq.txt"
+// #define QUESTIONFILE "questions.txt"
 #define LEADERBOARDFILE "leaderboard.txt"
 
 using namespace std;
@@ -69,8 +69,8 @@ void sendDataTCP(int, char[], int);
 void receiveDataTCP(int, char[], int &);
 
 void readQuestionFile();
-void endGame(int sock, char *buffer, int size, int bytesSent);
-pair<string, int> getGameString();
+void endGameCleanup(int sock, char *buffer, int size, int bytesSent);
+pair<string, int> gameMessage();
 void loadLeaderboard();
 void updateLeaderboard(int score, string name);
 bool sortPairSecond(const pair<string,int> &a, const pair<string,int> &b);
@@ -362,6 +362,7 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     type = recMsg.at(0);
     if (type == 'm')
     {
+        // non-command message
     }
     else if (type == 'r' && playerReady == false)
     {
@@ -396,9 +397,11 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     }
     else if (type == 'e')
     {
+        // extra time
     }
     else if (type == 'k')
     {
+        // kick
     }
     else if (type == 'q')
     {
@@ -409,10 +412,15 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
         cout << "client replied with: " << recMsg << endl;
         cout << "client choice was: " << recMsg[9] << endl;
         quiz.addResponse(tolower(recMsg[9]));
-        answerRec = true;
+        // TODO: change so wait for all teams response or timer expire
+        if(quiz.getResponses().size() == quiz.getTeam().size())
+        {
+            answerRec = true;
+        }
     }
     else if (type == 'v')
     {
+        // leave
     }
     else if (type == 'o')
     {
@@ -429,57 +437,18 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     recMsg = recMsg.substr(1, recMsg.length() - 1);
 
     cout << "User " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << ": " << recMsg;
-
-    /*
-
-    if (strncmp(inBuffer, "terminate", 9) == 0)
-    {
-        terminated = true;
-    }
-    else if (strncmp(inBuffer, "/ready", 6) == 0 && playerReady == false)
-    {
-        auto attr_iter = find_if(players.begin(), players.end(), FindAttribute(to_string(clientAddr.sin_port)));
-        if (attr_iter != players.end())
-        {
-            cout << "player found with password: " << to_string(clientAddr.sin_port) << endl;
-            auto index = distance(players.begin(), attr_iter);
-            cout << "index of player is: " << index << endl;
-            quiz.addPlayer(players.at(index));
-            playerReady = true;
-        }
-    }
-    else if (strncmp(inBuffer, "/question", 7) == 0)
-    {
-        requestQuestionRepeat = true;
-    }
-    else if (strncmp(inBuffer, "/answer", 7) == 0 && quizStarted && questionSent)
-    {
-        string temp(inBuffer);
-        cout << "client replied with: " << temp << endl;
-        cout << "client replied with: " << temp[8] << endl;
-        quiz.addResponse(tolower(temp[8]));
-        answerRec = true;
-    }
-    else
-    {
-        unknownCommandFlag = true;
-        string temp(inBuffer);
-        unknownCommand = temp;
-        cout << "Unknown command: " << temp << endl;
-    }
-    */
 }
 
 void sendDataTCP(int sock, char *buffer, int size)
 {
     int bytesSent = 0; // Number of bytes sent
-    pair<string, int> message = getGameString();
+    pair<string, int> message = gameMessage();
     string msg = message.first;
     int msgSize = message.second;
 
     if (gameOver)
     {
-        endGame(sock, buffer, size, bytesSent);
+        endGameCleanup(sock, buffer, size, bytesSent);
     }
     else if (missingEventHandler)
     {
@@ -529,11 +498,34 @@ void sendDataTCP(int sock, char *buffer, int size)
     }
 }
 
-void endGame(int sock, char *buffer, int size, int bytesSent)
+void endGameCleanup(int sock, char *buffer, int size, int bytesSent)
 {
+    cout << "END GAME\n" << endl;
     string msg = "GAME OVER\n";
     // TODO: print leaderboard
     msg += "Points: " + to_string(quiz.getPoints()) + " Fails: " + to_string(quiz.getFailCounter()) + "\n";
+    
+    updateLeaderboard(quiz.getPoints(), quiz.getTeam().front().getUsername());
+
+    msg += "\nLeaderboard\n";
+
+    int index = 10;
+
+    if (leaderboard.size() < 10)
+    {
+        index = leaderboard.size();
+    }
+
+    for (int i = 0; i < index; i++) 
+    {
+        msg += to_string(i+1);
+        msg +=  ") ";
+        msg += leaderboard.at(i).first;
+        msg += " - ";
+        msg += to_string(leaderboard.at(i).second);
+        msg += "\n";
+    }
+
     int sizeMsg = msg.length();
     bytesSent = send(sock, (char *)msg.c_str(), sizeMsg, 0);
     if (bytesSent < 0)
@@ -541,6 +533,7 @@ void endGame(int sock, char *buffer, int size, int bytesSent)
         cout << "error in sending: sendDataTCP" << endl;
         return;
     }
+
     quiz.clearTeam();
     readQuestionsFromFile = false;
     quizStarted = false;
@@ -548,7 +541,7 @@ void endGame(int sock, char *buffer, int size, int bytesSent)
     gameOver = false;
 }
 
-pair<string, int> getGameString()
+pair<string, int> gameMessage()
 {
     string gameMsg = "";
     int gameMsgSize = 0;
@@ -557,6 +550,8 @@ pair<string, int> getGameString()
     {
         gameMsg += "You're ready to play the game. Have fun!\n";
         gameMsgSize += gameMsg.length();
+        // TODO: change so wait for all timer expire or set number of players joined
+        // if (quiz.getTeam().size() == 4) {quizStarted = true;}
         quizStarted = true;
         cout << "Quiz started: " << quizStarted << endl;
     }
@@ -572,8 +567,6 @@ pair<string, int> getGameString()
         {
             index = leaderboard.size();
         }
-
-        sort(leaderboard.begin(), leaderboard.end(), sortPairSecond);
 
         for (int i = 0; i < index; i++) 
         {
@@ -618,6 +611,7 @@ pair<string, int> getGameString()
 
     if (quizStarted && questionSent && answerRec)
     {
+        // TODO: change so wait for all teams response or timer expire
         answerRec = false;
         quiz.calculateMode(); // calculate most chosen response
         // cout << "MODE: " << quiz.getMode() << endl;
@@ -646,7 +640,7 @@ pair<string, int> getGameString()
         else
         {
             gameOver = true;
-            // endGame(sock, buffer, size, bytesSent);
+            // endGameCleanup(sock, buffer, size, bytesSent);
         }
     }
 
@@ -659,44 +653,89 @@ void loadLeaderboard()
     string name;
     int score;
 
-    ifstream fin(LEADERBOARDFILE, ios::in);
+    ifstream fileIn(LEADERBOARDFILE, ios::in);
 
     // file not found error
-    if (!fin)
+    if (!fileIn)
     {
         cerr << "error: open file for input failed!" << endl;
         return;
     }
 
-    while (fin >> name >> score)
+    while (fileIn >> name >> score)
     {
         cout << "Name: " << name << "\nScore: " << score << "\n" << endl;
         leaderboard.push_back(make_pair(name, score));
     }
 
-    fin.close();
+    fileIn.close();
     leaderboardLoaded = true;
+    sort(leaderboard.begin(), leaderboard.end(), sortPairSecond);
+
 }
 
 void updateLeaderboard(int score, string name)
 {
-    // TODO: replace score if name exists 
-    int replaceIndex = 0;
-    int index = 0;
-    while(index < leaderboard.size())
+    bool nameFound = false;
+    // cout << "UPDATE LEADERBOARD\n" << endl;
+
+    int index;
+
+    for (int i = 0; i < leaderboard.size(); i++) 
     {
-        if (leaderboard.at(index).second > score)
+        if (leaderboard.at(i).first == name) 
         {
-            replaceIndex = index;
+            index = i;
+            cout << "index: " << to_string(index) << endl;
+            nameFound = true;
+        }
+    }
+
+    if (nameFound) {
+        if (leaderboard.at(index).second < score)
+        {
             leaderboard.erase(leaderboard.begin() + index);
         }
-        else
-        {
-            return;
-        }
-        
-        index--;
     }
+
+    leaderboard.push_back(make_pair(name, score));
+    sort(leaderboard.begin(), leaderboard.end(), sortPairSecond);
+
+    // write updated leaderboard to file
+    fstream outFile;
+    
+    outFile.open(LEADERBOARDFILE, ios::trunc | ios::out);
+
+    string newLeaderBoard = "";
+
+    for (int i = 0; i < leaderboard.size(); i++) 
+    {
+        newLeaderBoard += leaderboard.at(i).first;
+        newLeaderBoard += " ";
+        newLeaderBoard += to_string(leaderboard.at(i).second);
+        newLeaderBoard += "\n";
+    }
+
+    outFile << newLeaderBoard;
+    outFile.close();
+
+    // TODO: replace score if name exists 
+    // int replaceIndex = 0;
+    // int index = 0;
+    // while(index < leaderboard.size())
+    // {
+    //     if (leaderboard.at(index).second > score)
+    //     {
+    //         replaceIndex = index;
+    //         leaderboard.erase(leaderboard.begin() + index);
+    //     }
+    //     else
+    //     {
+    //         return;
+    //     }
+        
+    //     index--;
+    // }
 }
 
 bool sortPairSecond(const pair<string,int> &a, const pair<string,int> &b) 

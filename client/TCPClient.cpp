@@ -149,7 +149,6 @@ int main(int argc, char *argv[])
         if (strncmp(outBuffer, "/", 1) == 0)
         {
             //cout << "found possible command" << outBuffer << endl;
-            char wSpace = ' ';
 
             for (int i = 0; i < BUFFERSIZE; i++)
             {
@@ -162,7 +161,7 @@ int main(int argc, char *argv[])
                     break;
                 }
             }
-            cout << "len: " << len << endl;
+            // cout << "len: " << len << endl;
             if (strncmp(outBuffer, "/ready", len) == 0)
             {
                 type = 'r';
@@ -229,7 +228,7 @@ int main(int argc, char *argv[])
         }
         else if (type == 'h')
         {
-            cout << "/ready\n/leaderboard\n/players\n/help\n/extra\n/kick <playerName>\n/question\n/<answer>\n/leave\n/logout" << endl;
+            cout << "Avalaiable Commands:\n/ready\n/leaderboard\n/players\n/help\n/extra\n/kick <playerName>\n/question\n/answer <choice>\n/leave\n/logout" << endl;
             noSend = true;
             noRecv = true;
         }
