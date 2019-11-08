@@ -14,7 +14,8 @@
 #include <errno.h>
 #include <stdio.h>
 #include <fstream>
-
+#include <vector> 
+#include <algorithm> 
 using namespace std;
 
 const int BUFFERSIZE = 512;   // Size the message buffers
@@ -50,6 +51,9 @@ void receiveDataTCP (int, char[], int&);
 char type;
 string msg;
 bool noSend = false;
+
+vector<int> socks;
+vector<struct sockaddr_in> clients;
 
 int main(int argc, char *argv[])
 {
@@ -111,7 +115,8 @@ int main(int argc, char *argv[])
             if ((clientSock = accept(serverSockTCP, (struct sockaddr *) &clientAddr, &size)) < 0)
                 break;
             cout << "Accepted a connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << endl;
-            
+            clients.push_back(clientAddr);
+			socks.push_back(clientSock);
             // Add the new connection to the receive socket set
             FD_SET(clientSock, &recvSockSet);
             maxDesc = max(maxDesc, clientSock);
@@ -312,6 +317,8 @@ void receiveDataTCP (int sock, char* inBuffer, int& size)
     }*/
     msg = string(inBuffer);
     type = msg.at(0);
+	std::vector<int>::iterator it = find(socks.begin(), socks.end(), sock);;
+		int clientNum = std::distance(socks.begin(), it);
 	if (type == 'm') {
 		
 	}else if (type == 'r'){
@@ -334,7 +341,8 @@ void receiveDataTCP (int sock, char* inBuffer, int& size)
 	}else if (type == 'v'){
 		
 	}else if (type == 'o'){
-		 cout << "User " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << " has left" << endl;
+		
+		 cout << "User " << inet_ntoa(clients[clientNum].sin_addr) << ":" << clients[clientNum].sin_port << " has left" << endl;
 		 return;
 		 //close(sock);
 	}else{
@@ -342,7 +350,7 @@ void receiveDataTCP (int sock, char* inBuffer, int& size)
 	}
 	msg = msg.substr(1, msg.length()-1);
 	
-    cout << "User " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << ": " << msg;
+    cout << "User " << inet_ntoa(clients[clientNum].sin_addr) << ":" << clients[clientNum].sin_port << ": " << msg;
 	
 }
 
@@ -350,129 +358,9 @@ void sendDataTCP (int sock, char* buffer, int size)
 {
     int bytesSent = 0;                   // Number of bytes sent
     
-	if(list){
-		
-		// Execute the "ls" command and save the output to /tmp/temp.txt.
-		// /tmp is a special directory storing temporate files in Linux.
-		system("ls > /tmp/temp.txt");
-		
-		// Open the file
-		ifstream infile;
-		infile.open("/tmp/temp.txt");
-		
-		// Store the file content into a string
-		string line;
-		string data = "";
-		while (getline(infile, line))
-		{
-			data += line + "\n";
-		}
-		
-		// Close the file
-		infile.close();
-
-		cout << data;
-		size = strlen(data.c_str());
-		//cout << "size is " << size << endl;
-		bytesSent = send(sock, (char *) data.c_str(), size, 0);
-		if (bytesSent < 0){
-			cout << "error in sending: sendDataTCP" << endl;
-			return;
-		}
-		//cout << "SENT: " << bytesSent << endl;
-		list = false;
-		
-	}
     // Sent the data
     //bytesSent += send(sock, (char *) buffer + bytesSent, size - bytesSent, 0);
-	if(get){
-        
-        
-        size_t found = fileName.find(".");
 	
-		std::string temp = "-" + std::to_string(clientAddr.sin_port);
-		
-		//cout << "THE NEW FILENAME IS === " << temp << endl;
-        string newName = fileName;
-		newName.insert(found, temp);
-        //cout << "THE NEW FILENAME IS === " << newName << endl;
-        
-        bytesSent = send(sock, (char *) newName.c_str(), newName.length(), 0);
-        if (bytesSent < 0){
-			cout << "error in sending: sendDataTCP" << endl;
-			return;
-		}
-		//cout << "SENT: " << bytesSent << endl;
-		list = false;
-        
-        
-        
-		char *cstr = new char[fileName.length() + 1];
-		strcpy(cstr, fileName.c_str());
-		//cout << "FILENAME = '" << cstr << "'" << endl;
-		std::ifstream infile (cstr,ifstream::binary);
-		
-		//std::ofstream outfile ("new1.png",std::ofstream::binary);
-		
-		 // get size of file
-		 infile.seekg (0,infile.end);
-		  //cout << "about to size=\n";
-		 ifstream::pos_type size = infile.tellg();
-		  //cout << "about to seekg\n";
-		 infile.seekg (0);
-		  //cout << "done\n";
-		  
-		 
-		  
-		  // allocate memory for file content
-		char* buffer = new char[size];
-		//cout << "im about to read a " << size << " file" << endl;
-		// read content of infile
-		infile.read (buffer, size);
-		
-		//cout << "read it\n";
-		
-		//outfile.write(buffer, size);
-		
-		
-		/*// Open the file for input
-		cout << "Open file: '" << fileName << "'" << endl;
-		ifstream infile;
-		infile.open(fileName.c_str());
-
-		// check for errors in opening the file
-		if (!infile.is_open())
-		{
-			cout << "open() failed " << endl;
-			string msg = "Error in openning file " + fileName + "\n";
-			cout << msg;
-		}
-		
-		// Read the file line by line
-		string line;
-		string data = "";
-		while (getline(infile, line))
-		{
-			line += "\n";
-			data += line;
-			cout << line;
-		}*/
-		//size = strlen(data.c_str());
-		//cout << "size is " << size << endl;
-		bytesSent = send(sock, (char *) buffer, size, 0);
-		if (bytesSent < 0){
-			cout << "error in sending: sendDataTCP" << endl;
-			return;
-		}
-		//cout << "SENT: " << bytesSent << endl;
-		
-		delete[] buffer;
-
-	  //outfile.close();
-	  infile.close();
-		get = false;
-		
-	}
     
     if(unknownCommandFlag) {
         string msg = "Unknown command: " + unknownCommand;
@@ -485,20 +373,36 @@ void sendDataTCP (int sock, char* buffer, int size)
 		//cout << "SENT: " << bytesSent << endl;
         unknownCommandFlag = false;
     }
-  
+	std::vector<int>::iterator it = find(socks.begin(), socks.end(), sock);;
+	int clientNum = std::distance(socks.begin(), it);
     if(!noSend){
-        msg = "Server: " + msg;
-        size = msg.length();
-        bytesSent = send(sock, (char *) msg.c_str(), size, 0);
-		if (bytesSent < 0){
-			cout << "error in sending: sendDataTCP: " << errno << endl;
-			
+		if (type == 'o'){
+			msg = "has left\n";
+		}
+		const char* tempAddr=inet_ntoa(clients[clientNum].sin_addr);
+		string temp2 = string(tempAddr);
+		string temp = "User ";
+		temp += temp2;
+        temp += ":";
+		temp += to_string(clients[clientNum].sin_port);
+		temp += ": ";
+		temp += msg;
+        size = temp.length();
+		for(int asock : socks){
+			//cout << "got in" << endl;
+			bytesSent = send(asock, (char *) temp.c_str(), size, 0);
+			if (bytesSent < 0){
+				cout << "error in sending: sendDataTCP: " << errno << endl;
+				
+			}
 		}
 		if (type == 'o'){ 
 				msg = "done";
 				bytesSent = send(sock, (char *) msg.c_str(), size, 0);
 				close(sock);
 				FD_CLR(sock,&recvSockSet);
+				clients.erase(clients.begin()+clientNum);
+				socks.erase(socks.begin()+clientNum);
 			}
 			return;
 	}else{
