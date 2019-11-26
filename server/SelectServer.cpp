@@ -621,7 +621,7 @@ void sendDataTCP(int sock, char *buffer, int size)
     }
     else // send message to user
     {
-        bytesSent = send(sock, (char *)recMsg.c_str(), msgSize, 0);
+        bytesSent = send(sock, (char *)msg.c_str(), msgSize, 0);
         cout << to_string(bytesSent) << endl;
         if (bytesSent < 0)
         {
