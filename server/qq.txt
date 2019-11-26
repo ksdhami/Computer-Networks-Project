@@ -1,0 +1,168 @@
+?You're 3rd place right now in a race. What place are you in when you pass the person in 2nd place?
+1a) 1st
+2b) 2nd
+3c) 3rd
+4d) None of the above
+!b
+
+?What year was the 2010 Vancouver Winter Olympics?
+1a) 2008
+2b) 2009
+3c) 2010
+4d) 2011
+!c
+
+?How do crickets hear?
+1a) Through their wings
+2b) Through their belly
+3c) Through their knees
+4d) Through their tongue
+!c
+
+?Which American city invented plastic vomit?
+1a) Chicago
+2b) Detroit
+3c) Columbus
+4d) Baltimore
+!a
+
+?In ‘Ben Hur’, which modern thing can be seen during the chariot scene?
+1a) A waitress
+2b) A car
+3c) A postbox
+4d) A street lamp
+!b
+
+?What was Karl Marx’s favorite color?
+1a) Brown
+2b) Blue
+3c) Red
+4d) Purple
+!c
+
+?What’s the best way to stop crying while peeling onions?
+1a) Lick almonds
+2b) Suck lemons
+3c) Eat cheese
+4d) Chew gum
+!d
+
+?How old was the youngest Pope?
+1a) 11
+2b) 17
+3c) 22
+4d) 29
+!a
+
+?Which animal sleeps for only five minutes a day?
+1a) A chameleon
+2b) A koala
+3c) A giraffe
+4d) A beaver
+!c
+
+?How many words in the English language end in “dous"?
+1a) Two
+2b) Four
+3c) Six
+4d) Eight
+!b
+
+?One human hair can support how many kilograms?
+1a) Three
+2b) Five
+3c) Seven
+4d) Nine
+!a
+
+?The bikini was originally called the what?
+1a) Poke
+2b) Range
+3c) Half
+4d) Atom
+!d
+
+?Which European city is home to the Fairy Investigation Society?
+1a) Poznan
+2b) Dublin
+3c) Bratislava
+4d) Tallinn
+!b
+
+?What’s a frog’s favorite color?
+1a) Blue
+2b) Orange
+3c) Yellow
+4d) Brown
+!a
+
+?Which one of these planets rotates clockwise?
+1a) Uranus
+2b) Mercury
+3c) Pluto
+4d) Venus
+!d
+
+?What perspires half a pint of fluid a day?
+1a) Your scalp
+2b) Your armpits
+3c) Your feet
+4d) Your buttocks
+!c
+
+?St Stephen is the patron saint of who?
+1a) Plumbers
+2b) Bricklayers
+3c) Roofers
+4d) Carpenters
+!b
+
+?Which country leads the world in cork production?
+1a) Greece
+2b) Australia
+3c) Spain
+4d) Mexico
+!c
+
+?On average, what do you do 15 times a day?
+1a) Laugh
+2b) Burp
+3c) Break wind
+4d) Lick your lips
+!a
+
+?What color was Coca-Cola originally?
+1a) Red
+2b) Purple
+3c) Beige
+4d) Green
+!d
+
+?Bubble gum contains what?
+1a) Plastic
+2b) Calcium
+3c) Rubber
+4d) Pepper
+!c
+
+?The inventor of the paint roller was of which nationality?
+1a) Hungarian
+2b) Canadian
+3c) Norwegian
+4d) Argentinian
+!b
+
+?Test Question 1: The answer is d?
+1a) a
+2b) b
+3c) c
+4d) d
+!d
+
+?Test Question 2: Choose b?
+1a) a
+2b) b
+3c) c
+4d) d
+!b
+
