@@ -59,6 +59,9 @@ bool leaderboardLoaded = false;
 bool seePlayers = false;
 bool chattingTime = true;       // not used yet
 bool answeringTime = false;     // not used yet
+string action = ""; // for timer print statement
+bool timerStarted = false;
+bool earlyAnswer = false;
 
 char type;
 string recMsg;
@@ -145,24 +148,25 @@ int main(int argc, char *argv[])
 ////TIMER
         if (quizStarted) {
                 start = time(0);  // current time
-                //if chatting time bool = true
+                if (chattingTime)
                     countdown = start + 30;  // set countdown to 30 seconds
-                // else if answer time bool = true
-                    // countdown = start + 5;
+                else if (answeringTime)
+                    countdown = start + 5;
                 previousSecond = countdown - start;  // used so it doesn't print multiple times in one second
                 timeLeft = previousSecond;
+                timerStarted = true;
 
-
-                cout << "You have " << previousSecond << " seconds." << endl;
+                action = (chattingTime == true) ? "chat." : "answer.";
+                cout << "You have " << previousSecond << " seconds to " << action << endl;
 
                 while (timeLeft > 0) {
                     current = time(0);
                      timeLeft = countdown - current;
-                    if (timeLeft != previousSecond) {
+                    if (timeLeft != previousSecond && (timeLeft <= 5 || timeLeft == 10)) {
                          cout << timeLeft << " seconds left!" << endl;
                          previousSecond = timeLeft;
-////
                     }
+////
                           // copy the receive descriptors to the working set
                         memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
 
@@ -192,13 +196,7 @@ int main(int argc, char *argv[])
 
                             clients.push_back(clientAddr);
                             socks.push_back(clientSock);
-							/*
-							cout << "current clients: ";
-							for(auto c : clients){
-								cout << inet_ntoa(c.sin_addr);
-							}
-							cout << endl;
-							*/
+
                             Player player(inet_ntoa(clientAddr.sin_addr), to_string(clientAddr.sin_port));
                             players.push_back(player);
                             cout << "Player added to server vector: " << players.back().getUsername() << " with password: " << players.back().getPassword() << endl;
@@ -222,9 +220,25 @@ int main(int argc, char *argv[])
 
                         TCPInc = false;
                 } // inner while loop
-                quizStarted = false; ////// test to stop timer from looping,
-                playerReady = false; ////// remove later
-        } // if in game statement
+                if (chattingTime && !earlyAnswer) {
+                  chattingTime = false;
+                  answeringTime = true;
+                  if (earlyAnswer)
+                    earlyAnswer = false;
+                }
+                else if (answeringTime) {
+                  chattingTime = true;
+                  answeringTime = false;
+                  if (!earlyAnswer) {   // Time ran out without answering
+                     answerRec = true;
+                     // TODO: Go to next question
+                  }
+                  else
+                     earlyAnswer = false;
+                }
+
+        } // (if quizStarted) statement
+
         else {
             // copy the receive descriptors to the working set
              memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
@@ -462,9 +476,9 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     cout << "Message from TCP Client: " << recMsg;
 
     std::vector<int>::iterator it = find(socks.begin(), socks.end(), sock);
-    
+    ;
     int clientNum = std::distance(socks.begin(), it);
-	cout << "received from client " << clientNum << endl;
+
     type = recMsg.at(0);
     if (type == 'm')
     {
@@ -523,6 +537,9 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
             if(quiz.getResponses().size() == quiz.getTeam().size())
             {
                 answerRec = true;
+                timeLeft = 0;
+                if (chattingTime)
+                     earlyAnswer = true;
             }
   //      }
   //      else
@@ -548,7 +565,7 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
 
     recMsg = recMsg.substr(1, recMsg.length() - 1);
 
-    cout << "User " << inet_ntoa(clients[clientNum].sin_addr) << ":" << clients[clientNum].sin_port << ": " << recMsg;
+    cout << "User " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << ": " << recMsg;
 }
 
 void sendDataTCP(int sock, char *buffer, int size)
@@ -559,7 +576,7 @@ void sendDataTCP(int sock, char *buffer, int size)
     int msgSize = message.second;
 
     std::vector<int>::iterator it = find(socks.begin(), socks.end(), sock);
-    
+    ;
     int clientNum = std::distance(socks.begin(), it);
 
     if (gameOver)
@@ -592,7 +609,7 @@ void sendDataTCP(int sock, char *buffer, int size)
         temp += ":";
         temp += to_string(clients[clientNum].sin_port);
         temp += ": ";
-        temp += recMsg;
+        temp += msg;
         size = temp.length();
         for (int asock : socks)
         {
@@ -606,7 +623,7 @@ void sendDataTCP(int sock, char *buffer, int size)
         if (type == 'o')
         {
             msg = "done";
-            bytesSent = send(sock, (char *)recMsg.c_str(), size, 0);
+            bytesSent = send(sock, (char *)msg.c_str(), size, 0);
             close(sock);
             FD_CLR(sock, &recvSockSet);
             clients.erase(clients.begin() + clientNum);
@@ -775,6 +792,33 @@ pair<string, int> gameMessage()
             gameOver = true;
             // endGameCleanup(sock, buffer, size, bytesSent);
         }
+    }
+
+    if (quizStarted && chattingTime && timerStarted && !answerRec)
+    {
+        if (timeLeft == 30) {
+            gameMsg += "You have 30 seconds to chat.";
+            gameMsgSize += gameMsg.length();
+        }
+        else if (timeLeft == 10 || timeLeft <= 5) {
+            gameMsg += "You have " + to_string(timeLeft) + " seconds left!";
+            gameMsgSize += gameMsg.length();
+        }
+//        cout << "C: " << timeLeft << endl;
+    }
+
+    if (quizStarted && answeringTime && timerStarted && !answerRec)
+    {
+        if (timeLeft == 5) {
+            gameMsg += "You have 5 seconds to answer.";
+            gameMsgSize += gameMsg.length();
+        }
+        else if (timeLeft < 5) {
+            gameMsg += "You have " + to_string(timeLeft) + " seconds left!";
+            gameMsgSize += gameMsg.length();
+        }
+
+//        cout << "A: " << timeLeft << endl;
     }
 
     return make_pair(gameMsg, gameMsgSize);
