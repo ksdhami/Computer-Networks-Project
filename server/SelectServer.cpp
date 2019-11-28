@@ -17,11 +17,12 @@
 #include <algorithm>
 #include <utility>
 #include "Quiz.cpp"
-#include <time.h>  // for timer
+#include <time.h> // for timer
 
 #define QUESTIONFILE "qq.txt"
 // #define QUESTIONFILE "questions.txt"
 #define LEADERBOARDFILE "leaderboard.txt"
+#define NUMPLAYERS 3
 
 using namespace std;
 
@@ -57,8 +58,9 @@ vector<pair<string, int> > leaderboard; // key(name):value(score) pair for leade
 bool seeLeaderboard = false;           // user requests to see leaderboard
 bool leaderboardLoaded = false;
 bool seePlayers = false;
-bool chattingTime = true;       // not used yet
-bool answeringTime = false;     // not used yet
+bool kickPlayer = false;
+bool chattingTime = true;   // not used yet
+bool answeringTime = false; // not used yet
 
 char type;
 string recMsg;
@@ -67,7 +69,6 @@ bool logoutRequest = false;
 bool missingEventHandler = false;
 
 time_t start, countdown, previousSecond, current, timeLeft; // for timer
-
 
 vector<int> socks;
 vector<struct sockaddr_in> clients;
@@ -82,15 +83,15 @@ void endGameCleanup(int sock, char *buffer, int size, int bytesSent);
 pair<string, int> gameMessage();
 void loadLeaderboard();
 void updateLeaderboard(int score, string name);
-bool sortPairSecond(const pair<string,int> &a, const pair<string,int> &b);
+bool sortPairSecond(const pair<string, int> &a, const pair<string, int> &b);
 
 // https://stackoverflow.com/questions/15063301/how-can-i-find-an-object-in-a-vector-based-on-class-properties
-class FindAttribute
+class FindPassAttribute
 {
     string name_;
 
 public:
-    FindAttribute(const string &name)
+    FindPassAttribute(const string &name)
         : name_(name)
     {
     }
@@ -98,6 +99,22 @@ public:
     bool operator()(Player &attr)
     {
         return attr.getPassword() == name_;
+    }
+};
+
+class FindNameAttribute
+{
+    string name_;
+
+public:
+    FindNameAttribute(const string &name)
+        : name_(name)
+    {
+    }
+
+    bool operator()(Player &attr)
+    {
+        return attr.getUsername() == name_;
     }
 };
 
@@ -137,91 +154,94 @@ int main(int argc, char *argv[])
 
         if (!leaderboardLoaded)
         {
-            cout << "Leaderboard Loading\n" << endl;
+            cout << "Leaderboard Loading\n"
+                 << endl;
             loadLeaderboard();
         }
 
+        ////TIMER
+        if (quizStarted)
+        {
+            start = time(0);        // current time
+                                    //if chatting time bool = true
+            countdown = start + 30; // set countdown to 30 seconds
+            // else if answer time bool = true
+            // countdown = start + 5;
+            previousSecond = countdown - start; // used so it doesn't print multiple times in one second
+            timeLeft = previousSecond;
 
-////TIMER
-        if (quizStarted) {
-                start = time(0);  // current time
-                //if chatting time bool = true
-                    countdown = start + 30;  // set countdown to 30 seconds
-                // else if answer time bool = true
-                    // countdown = start + 5;
-                previousSecond = countdown - start;  // used so it doesn't print multiple times in one second
-                timeLeft = previousSecond;
+            cout << "You have " << previousSecond << " seconds." << endl;
 
+            while (timeLeft > 0)
+            {
+                current = time(0);
+                timeLeft = countdown - current;
+                if (timeLeft != previousSecond)
+                {
+                    cout << timeLeft << " seconds left!" << endl;
+                    previousSecond = timeLeft;
+                    ////
+                }
+                // copy the receive descriptors to the working set
+                memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
 
-                cout << "You have " << previousSecond << " seconds." << endl;
+                // Select timeout has to be reset every time before select() is
+                // called, since select() may update the timeout parameter to
+                // indicate how much time was left.
+                selectTime = timeout;
+                int ready = select(maxDesc + 1, &tempRecvSockSet, NULL, NULL, &selectTime);
+                if (ready < 0)
+                {
+                    cout << "select() failed" << endl;
+                    break;
+                }
 
-                while (timeLeft > 0) {
-                    current = time(0);
-                     timeLeft = countdown - current;
-                    if (timeLeft != previousSecond) {
-                         cout << timeLeft << " seconds left!" << endl;
-                         previousSecond = timeLeft;
-////
-                    }
-                          // copy the receive descriptors to the working set
-                        memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
+                TCPInc = false;
 
-                        // Select timeout has to be reset every time before select() is
-                        // called, since select() may update the timeout parameter to
-                        // indicate how much time was left.
-                        selectTime = timeout;
-                        int ready = select(maxDesc + 1, &tempRecvSockSet, NULL, NULL, &selectTime);
-                        if (ready < 0)
-                        {
-                            cout << "select() failed" << endl;
-                            break;
-                        }
+                // First, process new connection request, if any.
+                if (FD_ISSET(serverSockTCP, &tempRecvSockSet))
+                {
+                    //cout << "found a tcp client" <<endl;
+                    // set the size of the client address structure
 
-                        TCPInc = false;
+                    // Establish a connection
+                    if ((clientSock = accept(serverSockTCP, (struct sockaddr *)&clientAddr, &size)) < 0)
+                        break;
+                    cout << "Accepted a connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << endl;
 
-                        // First, process new connection request, if any.
-                        if (FD_ISSET(serverSockTCP, &tempRecvSockSet))
-                        {
-                            //cout << "found a tcp client" <<endl;
-                            // set the size of the client address structure
+                    clients.push_back(clientAddr);
+                    socks.push_back(clientSock);
 
-                            // Establish a connection
-                            if ((clientSock = accept(serverSockTCP, (struct sockaddr *)&clientAddr, &size)) < 0)
-                                break;
-                             cout << "Accepted a connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << endl;
+                    Player player(inet_ntoa(clientAddr.sin_addr), to_string(clientAddr.sin_port));
+                    players.push_back(player);
+                    cout << "Player added to server vector: " << players.back().getUsername() << " with password: " << players.back().getPassword() << endl;
 
-                            clients.push_back(clientAddr);
-                            socks.push_back(clientSock);
+                    // Add the new connection to the receive socket set
+                    FD_SET(clientSock, &recvSockSet);
+                    maxDesc = max(maxDesc, clientSock);
+                    TCPInc = true;
+                }
+                else
+                {
+                    processSockets(tempRecvSockSet);
+                }
 
-                            Player player(inet_ntoa(clientAddr.sin_addr), to_string(clientAddr.sin_port));
-                            players.push_back(player);
-                            cout << "Player added to server vector: " << players.back().getUsername() << " with password: " << players.back().getPassword() << endl;
+                // Then process messages waiting at each ready socket
 
-                            // Add the new connection to the receive socket set
-                            FD_SET(clientSock, &recvSockSet);
-                            maxDesc = max(maxDesc, clientSock);
-                            TCPInc = true;
-                        }
-                        else
-                        {
-                            processSockets(tempRecvSockSet);
-                        }
+                if (!~(TCPInc))
+                {
+                    processSockets(tempRecvSockSet);
+                }
 
-                        // Then process messages waiting at each ready socket
-
-                        if (!~(TCPInc))
-                        {
-                            processSockets(tempRecvSockSet);
-                        }
-
-                        TCPInc = false;
-                } // inner while loop
-                quizStarted = false; ////// test to stop timer from looping,
-                playerReady = false; ////// remove later
-        } // if in game statement
-        else {
+                TCPInc = false;
+            }                    // inner while loop
+            quizStarted = false; ////// test to stop timer from looping,
+            playerReady = false; ////// remove later
+        }                        // if in game statement
+        else
+        {
             // copy the receive descriptors to the working set
-             memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
+            memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
 
             // Select timeout has to be reset every time before select() is
             // called, since select() may update the timeout parameter to
@@ -244,7 +264,7 @@ int main(int argc, char *argv[])
 
                 // Establish a connection
                 if ((clientSock = accept(serverSockTCP, (struct sockaddr *)&clientAddr, &size)) < 0)
-                break;
+                    break;
                 cout << "Accepted a connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << endl;
 
                 clients.push_back(clientAddr);
@@ -466,26 +486,31 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     }
     else if (type == 'r' && playerReady == false)
     {
-        auto attr_iter = find_if(players.begin(), players.end(), FindAttribute(to_string(clientAddr.sin_port)));
+        auto attr_iter = find_if(players.begin(), players.end(), FindPassAttribute(to_string(clientAddr.sin_port)));
         if (attr_iter != players.end())
         {
             cout << "player found with password: " << to_string(clientAddr.sin_port) << endl;
             auto index = distance(players.begin(), attr_iter);
             cout << "index of player is: " << index << endl;
             quiz.addPlayer(players.at(index));
-            playerReady = true;
+
+            // only set all player ready bool if size of team is right
+            if (quiz.getTeam().size() == NUMPLAYERS)
+            {
+                playerReady = true;
+            }
         }
     }
     else if (type == 'l')
     {
-        if(!seeLeaderboard)
+        if (!seeLeaderboard)
         {
             seeLeaderboard = true;
         }
     }
     else if (type == 'p')
     {
-        if(!playerReady)
+        if (!playerReady)
         {
             seePlayers = true;
         }
@@ -501,28 +526,63 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     }
     else if (type == 'k')
     {
+        cout << "\nkick test\n" << endl;
+        cout << "client wants to kick: " << recMsg << endl;
+
+        auto attr_client = find_if(quiz.getTeam().begin(), quiz.getTeam().end(), FindPassAttribute(to_string(clientAddr.sin_port)));
+        auto attr_iter = find_if(quiz.getTeam().begin(), quiz.getTeam().end(), FindPassAttribute(recMsg.substr(7)));
+
+        if (attr_iter != quiz.getTeam().end())
+        {
+            cout << "player on team with password: " << to_string(clientAddr.sin_port) << endl;
+            auto clientIndex = distance(quiz.getTeam().begin(), attr_client);
+            auto index = distance(quiz.getTeam().begin(), attr_iter);
+            cout << "index of player on team is: " << index << endl;
+
+            if (quiz.getTeam().at(clientIndex).getVoteKick() != true)
+            {
+                quiz.addKick(quiz.getTeam().at(index));
+                quiz.getTeam().at(clientIndex).setVoteKick(true);
+            }
+
+        }
+
+        if (quiz.getTeam().size() == quiz.getKickVotes().size()) {
+            kickPlayer = true;
+        }
+
         // kick
     }
     else if (type == 'q')
     {
         requestQuestionRepeat = true;
     }
-    else if (type == 'a' && quizStarted && questionSent && recMsg.length()>=9)
+    else if (type == 'a' && quizStarted && questionSent && recMsg.length() >= 9)
     {
- //       if (answeringTime) {
-            cout << "client replied with: " << recMsg << endl;
-            cout << "client choice was: " << recMsg[9] << endl;
-            quiz.addResponse(tolower(recMsg[9]));
-            // TODO: change so wait for all teams response or timer expire
-            if(quiz.getResponses().size() == quiz.getTeam().size())
-            {
-                answerRec = true;
-            }
-  //      }
-  //      else
-  //      {
-  //          cout << "you cannot answer yet" << endl;
-  //      }
+        //       if (answeringTime) {
+        cout << "client replied with: " << recMsg << endl;
+        cout << "client choice was: " << recMsg[9] << endl;
+
+        auto attr_iter = find_if(quiz.getTeam().begin(), quiz.getTeam().end(), FindPassAttribute(to_string(clientAddr.sin_port)));
+        if (attr_iter != quiz.getTeam().end())
+        {
+            cout << "player on team with password: " << to_string(clientAddr.sin_port) << endl;
+            auto index = distance(quiz.getTeam().begin(), attr_iter);
+            cout << "index of player on team is: " << index << endl;
+        }
+
+        quiz.addResponse(tolower(recMsg[9]));
+
+        if (quiz.getResponses().size() == quiz.getTeam().size())
+        {
+            answerRec = true;
+        }
+
+        //      }
+        //      else
+        //      {
+        //          cout << "you cannot answer yet" << endl;
+        //      }
     }
     else if (type == 'v')
     {
@@ -627,9 +687,9 @@ void sendDataTCP(int sock, char *buffer, int size)
 
 void endGameCleanup(int sock, char *buffer, int size, int bytesSent)
 {
-    cout << "END GAME\n" << endl;
+    cout << "END GAME\n"
+         << endl;
     string msg = "GAME OVER\n";
-    // TODO: print leaderboard
     msg += "Points: " + to_string(quiz.getPoints()) + " Fails: " + to_string(quiz.getFailCounter()) + "\n";
 
     updateLeaderboard(quiz.getPoints(), quiz.getTeam().front().getUsername());
@@ -645,8 +705,8 @@ void endGameCleanup(int sock, char *buffer, int size, int bytesSent)
 
     for (int i = 0; i < index; i++)
     {
-        msg += to_string(i+1);
-        msg +=  ") ";
+        msg += to_string(i + 1);
+        msg += ") ";
         msg += leaderboard.at(i).first;
         msg += " - ";
         msg += to_string(leaderboard.at(i).second);
@@ -697,15 +757,15 @@ pair<string, int> gameMessage()
 
         for (int i = 0; i < index; i++)
         {
-            gameMsg += to_string(i+1);
-            gameMsg +=  ") ";
+            gameMsg += to_string(i + 1);
+            gameMsg += ") ";
             gameMsg += leaderboard.at(i).first;
             gameMsg += " - ";
             gameMsg += to_string(leaderboard.at(i).second);
             gameMsg += "\n";
-            }
+        }
 
-        cout << "Send to client leaderboard: " << gameMsg <<endl;
+        cout << "Send to client leaderboard: " << gameMsg << endl;
         gameMsgSize += gameMsg.length();
         seeLeaderboard = false;
     }
@@ -719,9 +779,9 @@ pair<string, int> gameMessage()
         {
             gameMsg += players.at(i).getUsername();
             gameMsg += "\n";
-            }
+        }
 
-        cout << "Send to client player names: " << gameMsg <<endl;
+        cout << "Send to client player names: " << gameMsg << endl;
         gameMsgSize += gameMsg.length();
         seePlayers = false;
     }
@@ -776,7 +836,7 @@ pair<string, int> gameMessage()
 
 void loadLeaderboard()
 {
-    string line;      // line from file
+    string line; // line from file
     string name;
     int score;
 
@@ -791,14 +851,14 @@ void loadLeaderboard()
 
     while (fileIn >> name >> score)
     {
-        cout << "Name: " << name << "\nScore: " << score << "\n" << endl;
+        cout << "Name: " << name << "\nScore: " << score << "\n"
+             << endl;
         leaderboard.push_back(make_pair(name, score));
     }
 
     fileIn.close();
     leaderboardLoaded = true;
     sort(leaderboard.begin(), leaderboard.end(), sortPairSecond);
-
 }
 
 void updateLeaderboard(int score, string name)
@@ -818,7 +878,8 @@ void updateLeaderboard(int score, string name)
         }
     }
 
-    if (nameFound) {
+    if (nameFound)
+    {
         if (leaderboard.at(index).second < score)
         {
             leaderboard.erase(leaderboard.begin() + index);
@@ -865,7 +926,7 @@ void updateLeaderboard(int score, string name)
     // }
 }
 
-bool sortPairSecond(const pair<string,int> &a, const pair<string,int> &b)
+bool sortPairSecond(const pair<string, int> &a, const pair<string, int> &b)
 {
     return (a.second > b.second);
 }
