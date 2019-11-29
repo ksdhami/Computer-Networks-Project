@@ -22,6 +22,7 @@
 #define QUESTIONFILE "qq.txt"
 // #define QUESTIONFILE "questions.txt"
 #define LEADERBOARDFILE "leaderboard.txt"
+#define NUMPLAYERS 3
 
 using namespace std;
 
@@ -59,6 +60,9 @@ bool leaderboardLoaded = false;
 bool seePlayers = false;
 bool chattingTime = true;       // not used yet
 bool answeringTime = false;     // not used yet
+
+bool chatMessage = false;
+bool singlePlayerOnly = false;
 
 char type;
 string recMsg;
@@ -294,6 +298,7 @@ int main(int argc, char *argv[])
     close(serverSockTCP);
 }
 
+
 void readQuestionFile()
 {
     string line;      // line from file
@@ -468,10 +473,14 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     type = recMsg.at(0);
     if (type == 'm')
     {
+        chatMessage = true;
+        singlePlayerOnly = false;
         // non-command message
     }
     else if (type == 'r' && playerReady == false)
     {
+        chatMessage = false;
+        singlePlayerOnly = false;
         auto attr_iter = find_if(players.begin(), players.end(), FindAttribute(to_string(clientAddr.sin_port)));
         if (attr_iter != players.end())
         {
@@ -479,11 +488,16 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
             auto index = distance(players.begin(), attr_iter);
             cout << "index of player is: " << index << endl;
             quiz.addPlayer(players.at(index));
-            playerReady = true;
+            if (quiz.getTeam().size() == NUMPLAYERS)
+            {
+                playerReady = true;
+            }
         }
     }
     else if (type == 'l')
     {
+        chatMessage = false;
+        singlePlayerOnly = true;
         if(!seeLeaderboard)
         {
             seeLeaderboard = true;
@@ -491,6 +505,8 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     }
     else if (type == 'p')
     {
+        chatMessage = false;
+        singlePlayerOnly = true;
         if(!playerReady)
         {
             seePlayers = true;
@@ -503,18 +519,24 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     }
     else if (type == 'e')
     {
+        chatMessage = false;
         // extra time
     }
     else if (type == 'k')
     {
+        chatMessage = false;
         // kick
     }
     else if (type == 'q')
     {
+        chatMessage = false;
+        singlePlayerOnly = true;
         requestQuestionRepeat = true;
     }
     else if (type == 'a' && quizStarted && questionSent && recMsg.length()>=9)
     {
+        chatMessage = false;
+        singlePlayerOnly = false;
  //       if (answeringTime) {
             cout << "client replied with: " << recMsg << endl;
             cout << "client choice was: " << recMsg[9] << endl;
@@ -532,16 +554,22 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     }
     else if (type == 'v')
     {
+        chatMessage = false;
+        singlePlayerOnly = true;
         // leave
     }
     else if (type == 'o')
     {
+        chatMessage = false;
+        singlePlayerOnly = false;
         cout << "User " << inet_ntoa(clients[clientNum].sin_addr) << ":" << clients[clientNum].sin_port << " has left" << endl;
         return;
         //close(sock);
     }
     else
     {
+        chatMessage = false;
+        singlePlayerOnly = false;
         cout << "missing event handler" << endl;
         missingEventHandler = true;
     }
@@ -556,6 +584,7 @@ void sendDataTCP(int sock, char *buffer, int size)
     int bytesSent = 0; // Number of bytes sent
     pair<string, int> message = gameMessage();
     string msg = message.first;
+    cout << "message to send: " << msg << endl;
     int msgSize = message.second;
 
     std::vector<int>::iterator it = find(socks.begin(), socks.end(), sock);
@@ -579,7 +608,7 @@ void sendDataTCP(int sock, char *buffer, int size)
         //cout << "SENT: " << bytesSent << endl;
         missingEventHandler = false;
     }
-    else if (!noSend)
+    else if (chatMessage)
     {
         if (type == 'o')
         {
@@ -612,6 +641,32 @@ void sendDataTCP(int sock, char *buffer, int size)
             clients.erase(clients.begin() + clientNum);
             socks.erase(socks.begin() + clientNum);
         }
+        chatMessage = false;
+        return;
+    }
+    else if (!chatMessage)
+    {
+        if (singlePlayerOnly) {
+            bytesSent = send(sock, (char *)msg.c_str(), msgSize, 0);
+            cout << to_string(bytesSent) << endl;
+            if (bytesSent < 0)
+            {
+                cout << "error in sending: sendDataTCP" << endl;
+                return;
+            }
+        }
+        else {
+            for (int asock : socks)
+            {
+                bytesSent = send(asock, (char *)msg.c_str(), msgSize, 0);
+                // cout << to_string(bytesSent) << endl;
+                if (bytesSent < 0)
+                {
+                    cout << "error in sending: sendDataTCP" << endl;
+                    return;
+                }
+            }
+        }
         return;
     }
     else if (noSend)
@@ -621,13 +676,13 @@ void sendDataTCP(int sock, char *buffer, int size)
     }
     else // send message to user
     {
-        bytesSent = send(sock, (char *)msg.c_str(), msgSize, 0);
-        cout << to_string(bytesSent) << endl;
-        if (bytesSent < 0)
-        {
-            cout << "error in sending: sendDataTCP" << endl;
-            return;
-        }
+        // bytesSent = send(sock, (char *)msg.c_str(), msgSize, 0);
+        // cout << to_string(bytesSent) << endl;
+        // if (bytesSent < 0)
+        // {
+        //     cout << "error in sending: sendDataTCP" << endl;
+        //     return;
+        // }
     }
 }
 
@@ -659,12 +714,22 @@ void endGameCleanup(int sock, char *buffer, int size, int bytesSent)
         msg += "\n";
     }
 
+    msg += "\n";
+    msg += "Welcome Back To The Waiting Room";
+    msg += "\n";
+    msg += "Please enter a message to be sent to the server: ";
+    msg += "\n";
+
     int sizeMsg = msg.length();
-    bytesSent = send(sock, (char *)msg.c_str(), sizeMsg, 0);
-    if (bytesSent < 0)
+
+    for (int asock : socks)
     {
-        cout << "error in sending: sendDataTCP" << endl;
-        return;
+        bytesSent = send(asock, (char *)msg.c_str(), sizeMsg, 0);
+        if (bytesSent < 0)
+        {
+            cout << "error in sending: sendDataTCP" << endl;
+            return;
+        }
     }
 
     quiz.clearTeam();
@@ -852,23 +917,8 @@ void updateLeaderboard(int score, string name)
     outFile << newLeaderBoard;
     outFile.close();
 
-    // TODO: replace score if name exists
-    // int replaceIndex = 0;
-    // int index = 0;
-    // while(index < leaderboard.size())
-    // {
-    //     if (leaderboard.at(index).second > score)
-    //     {
-    //         replaceIndex = index;
-    //         leaderboard.erase(leaderboard.begin() + index);
-    //     }
-    //     else
-    //     {
-    //         return;
-    //     }
+    
 
-    //     index--;
-    // }
 }
 
 bool sortPairSecond(const pair<string,int> &a, const pair<string,int> &b)
