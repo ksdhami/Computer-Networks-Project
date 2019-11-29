@@ -64,7 +64,8 @@ bool earlyAnswer = false;
 bool wrTimerDone = false;   // waiting room timer
 string action = "";  // for timer print statement
 //bool showTimer = false;
-int numTimeouts = 0;
+//int numTimeouts = 0;
+bool serverMessage = false;
 
 bool chatMessage = false;
 bool singlePlayerOnly = false;
@@ -217,7 +218,9 @@ int main(int argc, char *argv[])
 
             }
             wrTimerDone = true;
+            serverMessage = true;
             //quizStarted = true;
+            processSockets(tempRecvSockSet);
         }
 
         if (quizStarted) {
@@ -517,7 +520,10 @@ void processSockets(fd_set readySocks)
             memset(buffer, 0, BUFFERSIZE);
             //cout << "tcp buffs cleared" << endl;
             // Receive data from the client
-            receiveDataTCP(sock, buffer, size);
+            if (!serverMessage)
+            {
+                receiveDataTCP(sock, buffer, size);
+            }
             //cout << "tcp receive done" << endl;
             // Echo the message back to the client
             sendDataTCP(sock, buffer, size);
@@ -856,7 +862,7 @@ pair<string, int> gameMessage()
         gameMsg += "The game will start in 60 seconds.\n";
         gameMsgSize += gameMsg.length();
     }
-    else if (playerReady && !quizStarted)
+    if (playerReady && !quizStarted && wrTimerDone)
     {
         gameMsg += "You're ready to play the game. Have fun!\n";
         gameMsgSize += gameMsg.length();
@@ -864,6 +870,7 @@ pair<string, int> gameMessage()
         // if (quiz.getTeam().size() == 4) {quizStarted = true;}
         quizStarted = true;
         cout << "Quiz started: " << quizStarted << endl;
+        serverMessage = false;
     }
 
     if ((!playerReady && seeLeaderboard) || (!wrTimerDone && seeLeaderboard))
