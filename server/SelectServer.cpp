@@ -22,6 +22,7 @@
 #define QUESTIONFILE "qq.txt"
 // #define QUESTIONFILE "questions.txt"
 #define LEADERBOARDFILE "leaderboard.txt"
+#define NUMPLAYERS 3
 
 using namespace std;
 
@@ -59,9 +60,14 @@ bool leaderboardLoaded = false;
 bool seePlayers = false;
 bool chattingTime = true;       // not used yet
 bool answeringTime = false;     // not used yet
-string action = ""; // for timer print statement
-bool timerStarted = false;
 bool earlyAnswer = false;
+bool wrTimerDone = false;   // waiting room timer
+string action = "";  // for timer print statement
+//bool showTimer = false;
+int numTimeouts = 0;
+
+bool chatMessage = false;
+bool singlePlayerOnly = false;
 
 char type;
 string recMsg;
@@ -86,6 +92,7 @@ pair<string, int> gameMessage();
 void loadLeaderboard();
 void updateLeaderboard(int score, string name);
 bool sortPairSecond(const pair<string,int> &a, const pair<string,int> &b);
+void setupTimer(int);
 
 // https://stackoverflow.com/questions/15063301/how-can-i-find-an-object-in-a-vector-based-on-class-properties
 class FindAttribute
@@ -144,29 +151,89 @@ int main(int argc, char *argv[])
             loadLeaderboard();
         }
 
+        if (playerReady && !wrTimerDone) {
+            setupTimer(15);
+            while (timeLeft > 0) {
+                current = time(0);
+                timeLeft = countdown - current;
+                if (timeLeft != previousSecond && (timeLeft <= 5 || timeLeft == 10)) {
+                     cout << timeLeft << " seconds left!" << endl;  // print to server
+                     previousSecond = timeLeft;
+//                     showTimer = true;  // not working
+                }
 
-////TIMER
+                // copy the receive descriptors to the working set
+                 memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
+
+                // Select timeout has to be reset every time before select() is
+                // called, since select() may update the timeout parameter to
+                // indicate how much time was left.
+                selectTime = timeout;
+                int ready = select(maxDesc + 1, &tempRecvSockSet, NULL, NULL, &selectTime);
+                if (ready < 0)
+                {
+                    cout << "select() failed" << endl;
+                    break;
+                }
+
+                TCPInc = false;
+
+                // First, process new connection request, if any.
+                if (FD_ISSET(serverSockTCP, &tempRecvSockSet))
+                {
+                    //cout << "found a tcp client" <<endl;
+                    // set the size of the client address structure
+
+                    // Establish a connection
+                    if ((clientSock = accept(serverSockTCP, (struct sockaddr *)&clientAddr, &size)) < 0)
+                    break;
+                    cout << "Accepted a connection from " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << endl;
+
+                    clients.push_back(clientAddr);
+                    socks.push_back(clientSock);
+
+                    Player player(inet_ntoa(clientAddr.sin_addr), to_string(clientAddr.sin_port));
+                    players.push_back(player);
+                    cout << "Player added to server vector: " << players.back().getUsername() << " with password: " << players.back().getPassword() << endl;
+
+                    // Add the new connection to the receive socket set
+                    FD_SET(clientSock, &recvSockSet);
+                    maxDesc = max(maxDesc, clientSock);
+                    TCPInc = true;
+                }
+                else
+                {
+                    processSockets(tempRecvSockSet);
+                }
+
+                // Then process messages waiting at each ready socket
+
+                if (!~(TCPInc))
+                {
+                    processSockets(tempRecvSockSet);
+                }
+
+                TCPInc = false;
+
+            }
+            wrTimerDone = true;
+            //quizStarted = true;
+        }
+
         if (quizStarted) {
-                start = time(0);  // current time
-                if (chattingTime)
-                    countdown = start + 30;  // set countdown to 30 seconds
-                else if (answeringTime)
-                    countdown = start + 5;
-                previousSecond = countdown - start;  // used so it doesn't print multiple times in one second
-                timeLeft = previousSecond;
-                timerStarted = true;
+            if (chattingTime)
+                setupTimer(30);
+            else if (answeringTime)
+                setupTimer(5);
 
-                action = (chattingTime == true) ? "chat." : "answer.";
-                cout << "You have " << previousSecond << " seconds to " << action << endl;
-
-                while (timeLeft > 0) {
-                    current = time(0);
-                     timeLeft = countdown - current;
-                    if (timeLeft != previousSecond && (timeLeft <= 5 || timeLeft == 10)) {
-                         cout << timeLeft << " seconds left!" << endl;
-                         previousSecond = timeLeft;
-                    }
+            while (timeLeft > 0) {
+                current = time(0);
+                timeLeft = countdown - current;
+                if (timeLeft != previousSecond) {
+                    cout << timeLeft << " seconds left!" << endl;
+                    previousSecond = timeLeft;
 ////
+                    }
                           // copy the receive descriptors to the working set
                         memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
 
@@ -196,7 +263,13 @@ int main(int argc, char *argv[])
 
                             clients.push_back(clientAddr);
                             socks.push_back(clientSock);
-
+							/*
+							cout << "current clients: ";
+							for(auto c : clients){
+								cout << inet_ntoa(c.sin_addr);
+							}
+							cout << endl;
+							*/
                             Player player(inet_ntoa(clientAddr.sin_addr), to_string(clientAddr.sin_port));
                             players.push_back(player);
                             cout << "Player added to server vector: " << players.back().getUsername() << " with password: " << players.back().getPassword() << endl;
@@ -219,26 +292,29 @@ int main(int argc, char *argv[])
                         }
 
                         TCPInc = false;
-                } // inner while loop
-                if (chattingTime && !earlyAnswer) {
-                  chattingTime = false;
-                  answeringTime = true;
-                  if (earlyAnswer)
-                    earlyAnswer = false;
+            } // inner while loop
+                if (chattingTime) {
+                    if (earlyAnswer)
+                        earlyAnswer = false;
+                    else {
+                        chattingTime = false;
+                        answeringTime = true;
+                    }
                 }
                 else if (answeringTime) {
-                  chattingTime = true;
-                  answeringTime = false;
-                  if (!earlyAnswer) {   // Time ran out without answering
-                     answerRec = true;
+                    chattingTime = true;
+                    answeringTime = false;
+                    if (!earlyAnswer) {   // Time ran out without answering
+                        answerRec = true;
+                        questionSent = false;
+                        quiz.addResponse('t');  // CHANGE
+                        //++numTimeouts;
                      // TODO: Go to next question
                   }
-                  else
-                     earlyAnswer = false;
+                    else
+                        earlyAnswer = false;
                 }
-
-        } // (if quizStarted) statement
-
+        } // if quizStarted statement
         else {
             // copy the receive descriptors to the working set
              memcpy(&tempRecvSockSet, &recvSockSet, sizeof(recvSockSet));
@@ -307,6 +383,7 @@ int main(int argc, char *argv[])
     // Close the server sockets
     close(serverSockTCP);
 }
+
 
 void readQuestionFile()
 {
@@ -476,16 +553,20 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     cout << "Message from TCP Client: " << recMsg;
 
     std::vector<int>::iterator it = find(socks.begin(), socks.end(), sock);
-    ;
-    int clientNum = std::distance(socks.begin(), it);
 
+    int clientNum = std::distance(socks.begin(), it);
+	cout << "received from client " << clientNum << endl;
     type = recMsg.at(0);
     if (type == 'm')
     {
+        chatMessage = true;
+        singlePlayerOnly = false;
         // non-command message
     }
     else if (type == 'r' && playerReady == false)
     {
+        chatMessage = false;
+        singlePlayerOnly = false;
         auto attr_iter = find_if(players.begin(), players.end(), FindAttribute(to_string(clientAddr.sin_port)));
         if (attr_iter != players.end())
         {
@@ -493,11 +574,16 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
             auto index = distance(players.begin(), attr_iter);
             cout << "index of player is: " << index << endl;
             quiz.addPlayer(players.at(index));
-            playerReady = true;
+            if (quiz.getTeam().size() == NUMPLAYERS)
+            {
+                playerReady = true;
+            }
         }
     }
     else if (type == 'l')
     {
+        chatMessage = false;
+        singlePlayerOnly = true;
         if(!seeLeaderboard)
         {
             seeLeaderboard = true;
@@ -505,6 +591,8 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     }
     else if (type == 'p')
     {
+        chatMessage = false;
+        singlePlayerOnly = true;
         if(!playerReady)
         {
             seePlayers = true;
@@ -517,18 +605,24 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     }
     else if (type == 'e')
     {
+        chatMessage = false;
         // extra time
     }
     else if (type == 'k')
     {
+        chatMessage = false;
         // kick
     }
     else if (type == 'q')
     {
+        chatMessage = false;
+        singlePlayerOnly = true;
         requestQuestionRepeat = true;
     }
     else if (type == 'a' && quizStarted && questionSent && recMsg.length()>=9)
     {
+        chatMessage = false;
+        singlePlayerOnly = false;
  //       if (answeringTime) {
             cout << "client replied with: " << recMsg << endl;
             cout << "client choice was: " << recMsg[9] << endl;
@@ -536,10 +630,10 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
             // TODO: change so wait for all teams response or timer expire
             if(quiz.getResponses().size() == quiz.getTeam().size())
             {
+                if (chattingTime || (answeringTime && timeLeft > 0))
+                    earlyAnswer = true;
                 answerRec = true;
                 timeLeft = 0;
-                if (chattingTime)
-                     earlyAnswer = true;
             }
   //      }
   //      else
@@ -549,23 +643,29 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     }
     else if (type == 'v')
     {
+        chatMessage = false;
+        singlePlayerOnly = true;
         // leave
     }
     else if (type == 'o')
     {
+        chatMessage = false;
+        singlePlayerOnly = false;
         cout << "User " << inet_ntoa(clients[clientNum].sin_addr) << ":" << clients[clientNum].sin_port << " has left" << endl;
         return;
         //close(sock);
     }
     else
     {
+        chatMessage = false;
+        singlePlayerOnly = false;
         cout << "missing event handler" << endl;
         missingEventHandler = true;
     }
 
     recMsg = recMsg.substr(1, recMsg.length() - 1);
 
-    cout << "User " << inet_ntoa(clientAddr.sin_addr) << ":" << clientAddr.sin_port << ": " << recMsg;
+    cout << "User " << inet_ntoa(clients[clientNum].sin_addr) << ":" << clients[clientNum].sin_port << ": " << recMsg;
 }
 
 void sendDataTCP(int sock, char *buffer, int size)
@@ -573,10 +673,11 @@ void sendDataTCP(int sock, char *buffer, int size)
     int bytesSent = 0; // Number of bytes sent
     pair<string, int> message = gameMessage();
     string msg = message.first;
+    cout << "message to send: " << msg << endl;
     int msgSize = message.second;
 
     std::vector<int>::iterator it = find(socks.begin(), socks.end(), sock);
-    ;
+
     int clientNum = std::distance(socks.begin(), it);
 
     if (gameOver)
@@ -596,38 +697,67 @@ void sendDataTCP(int sock, char *buffer, int size)
         //cout << "SENT: " << bytesSent << endl;
         missingEventHandler = false;
     }
-    else if (!noSend)
+    else if (chatMessage)
     {
         if (type == 'o')
         {
             msg = "has left\n";
         }
-        const char *tempAddr = inet_ntoa(clients[clientNum].sin_addr);
-        string temp2 = string(tempAddr);
-        string temp = "User ";
-        temp += temp2;
-        temp += ":";
-        temp += to_string(clients[clientNum].sin_port);
-        temp += ": ";
-        temp += msg;
-        size = temp.length();
-        for (int asock : socks)
+        if (!answeringTime)
         {
-            //cout << "got in" << endl;
-            bytesSent = send(asock, (char *)temp.c_str(), size, 0);
-            if (bytesSent < 0)
+            const char *tempAddr = inet_ntoa(clients[clientNum].sin_addr);
+            string temp2 = string(tempAddr);
+            string temp = "User ";
+            temp += temp2;
+            temp += ":";
+            temp += to_string(clients[clientNum].sin_port);
+            temp += ": ";
+            temp += recMsg;
+            size = temp.length();
+            for (int asock : socks)
             {
-                cout << "error in sending: sendDataTCP: " << errno << endl;
+                //cout << "got in" << endl;
+                bytesSent = send(asock, (char *)temp.c_str(), size, 0);
+                if (bytesSent < 0)
+                {
+                    cout << "error in sending: sendDataTCP: " << errno << endl;
+                }
             }
         }
         if (type == 'o')
         {
             msg = "done";
-            bytesSent = send(sock, (char *)msg.c_str(), size, 0);
+            bytesSent = send(sock, (char *)recMsg.c_str(), size, 0);
             close(sock);
             FD_CLR(sock, &recvSockSet);
             clients.erase(clients.begin() + clientNum);
             socks.erase(socks.begin() + clientNum);
+        }
+        chatMessage = false;
+        return;
+    }
+    else if (!chatMessage)
+    {
+        if (singlePlayerOnly) {
+            bytesSent = send(sock, (char *)msg.c_str(), msgSize, 0);
+            cout << to_string(bytesSent) << endl;
+            if (bytesSent < 0)
+            {
+                cout << "error in sending: sendDataTCP" << endl;
+                return;
+            }
+        }
+        else {
+            for (int asock : socks)
+            {
+                bytesSent = send(asock, (char *)msg.c_str(), msgSize, 0);
+                // cout << to_string(bytesSent) << endl;
+                if (bytesSent < 0)
+                {
+                    cout << "error in sending: sendDataTCP" << endl;
+                    return;
+                }
+            }
         }
         return;
     }
@@ -636,15 +766,28 @@ void sendDataTCP(int sock, char *buffer, int size)
         noSend = false;
         return;
     }
-    else // send message to user
+/*
+    if (showTimer) // doesn't work
     {
-        bytesSent = send(sock, (char *)msg.c_str(), msgSize, 0);
-        cout << to_string(bytesSent) << endl;
+        msg += "\n" + to_string(timeLeft) + " seconds left!\n";
+        int sizeMsg = msg.length();
+        bytesSent = send(sock, (char *)msg.c_str(), sizeMsg, 0);
         if (bytesSent < 0)
         {
             cout << "error in sending: sendDataTCP" << endl;
-            return;
         }
+        showTimer = false;
+    }
+*/
+    else // send message to user
+    {
+        // bytesSent = send(sock, (char *)msg.c_str(), msgSize, 0);
+        // cout << to_string(bytesSent) << endl;
+        // if (bytesSent < 0)
+        // {
+        //     cout << "error in sending: sendDataTCP" << endl;
+        //     return;
+        // }
     }
 }
 
@@ -676,12 +819,22 @@ void endGameCleanup(int sock, char *buffer, int size, int bytesSent)
         msg += "\n";
     }
 
+    msg += "\n";
+    msg += "Welcome Back To The Waiting Room";
+    msg += "\n";
+    msg += "Please enter a message to be sent to the server: ";
+    msg += "\n";
+
     int sizeMsg = msg.length();
-    bytesSent = send(sock, (char *)msg.c_str(), sizeMsg, 0);
-    if (bytesSent < 0)
+
+    for (int asock : socks)
     {
-        cout << "error in sending: sendDataTCP" << endl;
-        return;
+        bytesSent = send(asock, (char *)msg.c_str(), sizeMsg, 0);
+        if (bytesSent < 0)
+        {
+            cout << "error in sending: sendDataTCP" << endl;
+            return;
+        }
     }
 
     quiz.clearTeam();
@@ -689,6 +842,8 @@ void endGameCleanup(int sock, char *buffer, int size, int bytesSent)
     quizStarted = false;
     playerReady = false;
     gameOver = false;
+    wrTimerDone = false;
+    setupTimer(0);
 }
 
 pair<string, int> gameMessage()
@@ -696,7 +851,12 @@ pair<string, int> gameMessage()
     string gameMsg = "";
     int gameMsgSize = 0;
 
-    if (playerReady && !quizStarted)
+    if (playerReady && !quizStarted && !wrTimerDone)
+    {
+        gameMsg += "The game will start in 60 seconds.\n";
+        gameMsgSize += gameMsg.length();
+    }
+    else if (playerReady && !quizStarted)
     {
         gameMsg += "You're ready to play the game. Have fun!\n";
         gameMsgSize += gameMsg.length();
@@ -706,7 +866,7 @@ pair<string, int> gameMessage()
         cout << "Quiz started: " << quizStarted << endl;
     }
 
-    if (!playerReady && seeLeaderboard)
+    if ((!playerReady && seeLeaderboard) || (!wrTimerDone && seeLeaderboard))
     {
         cout << "getting leaderboard" << endl;
         gameMsg += "\nLeaderboard\n";
@@ -733,7 +893,7 @@ pair<string, int> gameMessage()
         seeLeaderboard = false;
     }
 
-    if (!playerReady && seePlayers)
+    if ((!playerReady && seePlayers) || (!wrTimerDone && seePlayers))
     {
         cout << "getting players" << endl;
         gameMsg += "\nPlayers in lobby\n";
@@ -792,33 +952,6 @@ pair<string, int> gameMessage()
             gameOver = true;
             // endGameCleanup(sock, buffer, size, bytesSent);
         }
-    }
-
-    if (quizStarted && chattingTime && timerStarted && !answerRec)
-    {
-        if (timeLeft == 30) {
-            gameMsg += "You have 30 seconds to chat.";
-            gameMsgSize += gameMsg.length();
-        }
-        else if (timeLeft == 10 || timeLeft <= 5) {
-            gameMsg += "You have " + to_string(timeLeft) + " seconds left!";
-            gameMsgSize += gameMsg.length();
-        }
-//        cout << "C: " << timeLeft << endl;
-    }
-
-    if (quizStarted && answeringTime && timerStarted && !answerRec)
-    {
-        if (timeLeft == 5) {
-            gameMsg += "You have 5 seconds to answer.";
-            gameMsgSize += gameMsg.length();
-        }
-        else if (timeLeft < 5) {
-            gameMsg += "You have " + to_string(timeLeft) + " seconds left!";
-            gameMsgSize += gameMsg.length();
-        }
-
-//        cout << "A: " << timeLeft << endl;
     }
 
     return make_pair(gameMsg, gameMsgSize);
@@ -896,26 +1029,25 @@ void updateLeaderboard(int score, string name)
     outFile << newLeaderBoard;
     outFile.close();
 
-    // TODO: replace score if name exists
-    // int replaceIndex = 0;
-    // int index = 0;
-    // while(index < leaderboard.size())
-    // {
-    //     if (leaderboard.at(index).second > score)
-    //     {
-    //         replaceIndex = index;
-    //         leaderboard.erase(leaderboard.begin() + index);
-    //     }
-    //     else
-    //     {
-    //         return;
-    //     }
 
-    //     index--;
-    // }
+
 }
 
 bool sortPairSecond(const pair<string,int> &a, const pair<string,int> &b)
 {
     return (a.second > b.second);
+}
+
+void setupTimer(int countdownLength) {
+    start = time(0);  // current time
+    countdown = start + countdownLength;  // set countdown to 30 seconds
+    previousSecond = countdown - start;  // used so it doesn't print multiple times in one second
+    timeLeft = previousSecond;
+
+    if (!wrTimerDone)
+        cout << "The game will start in 60 seconds." << endl;
+    else {
+        action = (chattingTime == true) ? "chat." : "answer.";
+        cout << "You have " << previousSecond << " seconds to " << action << endl;
+    }
 }
