@@ -16,6 +16,7 @@
 #include <fstream>
 #include <algorithm>
 #include <utility>
+#include <unordered_map>
 #include "Quiz.cpp"
 #include <time.h> // for timer
 
@@ -23,6 +24,7 @@
 // #define QUESTIONFILE "questions.txt"
 #define LEADERBOARDFILE "leaderboard.txt"
 #define NUMPLAYERS 3
+#define MAJORITY 2
 
 using namespace std;
 
@@ -526,30 +528,31 @@ void receiveDataTCP(int sock, char *inBuffer, int &size)
     }
     else if (type == 'k')
     {
-        cout << "\nkick test\n" << endl;
-        cout << "client wants to kick: " << recMsg << endl;
+        // cout << "\nkick test\n" << endl;
+        // cout << "client wants to kick: " << recMsg << endl;
 
-        auto attr_client = find_if(quiz.getTeam().begin(), quiz.getTeam().end(), FindPassAttribute(to_string(clientAddr.sin_port)));
-        auto attr_iter = find_if(quiz.getTeam().begin(), quiz.getTeam().end(), FindPassAttribute(recMsg.substr(7)));
+        // auto attr_client = find_if(quiz.getTeam().begin(), quiz.getTeam().end(), FindPassAttribute(to_string(clientAddr.sin_port)));
+        // auto attr_iter = find_if(quiz.getTeam().begin(), quiz.getTeam().end(), FindPassAttribute(recMsg.substr(7)));
 
-        if (attr_iter != quiz.getTeam().end())
-        {
-            cout << "player on team with password: " << to_string(clientAddr.sin_port) << endl;
-            auto clientIndex = distance(quiz.getTeam().begin(), attr_client);
-            auto index = distance(quiz.getTeam().begin(), attr_iter);
-            cout << "index of player on team is: " << index << endl;
+        // if (attr_iter != quiz.getTeam().end())
+        // {
+        //     cout << "player on team with password: " << to_string(clientAddr.sin_port) << endl;
+        //     auto clientIndex = distance(quiz.getTeam().begin(), attr_client);
+        //     auto index = distance(quiz.getTeam().begin(), attr_iter);
+        //     cout << "index of player on team is: " << index << endl;
 
-            if (quiz.getTeam().at(clientIndex).getVoteKick() != true)
-            {
-                quiz.addKick(quiz.getTeam().at(index));
-                quiz.getTeam().at(clientIndex).setVoteKick(true);
-            }
+        //     if (quiz.getTeam().at(clientIndex).getVoteKick() != true)
+        //     {
+        //         quiz.addKick(quiz.getTeam().at(index));
+        //         quiz.getTeam().at(clientIndex).setVoteKick(true);
+        //     }
 
-        }
+        // }
 
-        if (quiz.getTeam().size() == quiz.getKickVotes().size()) {
-            kickPlayer = true;
-        }
+        // if (quiz.getKickVotes().size()<= MAJORITY && quiz.findMajority()) {
+        //     cout << "there is a majority to kick" << endl;
+        //     // kickPlayer = true;
+        // }
 
         // kick
     }

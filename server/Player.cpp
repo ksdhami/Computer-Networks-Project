@@ -15,6 +15,7 @@ private:
 public:
     string username;
     string password;
+    Player(){}
     Player(string name, string pass)
     {
         setUsername(name);

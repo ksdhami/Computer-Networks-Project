@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include "Question.cpp"
 #include "Player.cpp"
 
@@ -34,6 +35,7 @@ public:
     {
         setFailCounter(0);
         setPoints(0);
+        
     }
 
     ~Quiz()
@@ -75,38 +77,70 @@ public:
         // return responses[maxRepeat];
     }
 
-    void calculateKicked() 
-    {
-        int *repCnt = new int[kickVotes.size()];
-        for (size_t i = 0; i < kickVotes.size(); ++i)
-        {
-            repCnt[i] = 0;
-            int j = 0;
-
-            while ((j < i) && (kickVotes[i].getUsername() != kickVotes[j].getUsername()))
-            {
-                if (kickVotes[i].getUsername() != kickVotes[j].getUsername())
-                {
-                    ++j;
-                }
+    pair<string, string> findCandidate() 
+    { 
+        Player arr[kickVotes.size()];
+        copy(kickVotes.begin(), kickVotes.end(), arr);
+        int maj_index = 0, count = 1; 
+        for (int i = 1; i < kickVotes.size(); i++) 
+        { 
+            if (arr[maj_index].username == arr[i].username) {
+                count++; 
             }
-            ++(repCnt[j]);
-        }
+            else {
+                count--; 
+            }
+            if (count == 0) 
+            { 
+                maj_index = i; 
+                count = 1; 
+            } 
+        } 
+        pair<string, string> playerCand;
+        playerCand = make_pair(arr[maj_index].getUsername(), arr[maj_index].getPassword());
+        // return arr[maj_index];
+        return playerCand; 
+    } 
+    
+    /* Function to check if the candidate 
+    occurs more than n/2 times */
+    bool isMajority(Player cand) 
+    { 
+        Player arr[kickVotes.size()];
+        copy(kickVotes.begin(), kickVotes.end(), arr);
 
-        int maxRepeat = 0;
-        for (int i = 1; i < kickVotes.size(); ++i)
-        {
-            if (repCnt[i] > repCnt[maxRepeat])
-            {
-                maxRepeat = i;
+        int count = 0; 
+
+        for (int i = 0; i < kickVotes.size(); i++) {
+            if (arr[i].getUsername() == cand.getUsername() && arr[i].getPassword() == cand.getPassword()) {
+                count++; 
             }
         }
+            
+        if (count > (kickVotes.size())/2) {
+            return true; 
+        }
+        else {
+            return false; 
+        }
+    } 
 
-        delete[] repCnt;
-        cout << "Mode was: " << kickVotes[maxRepeat].getUsername() << "\n"
-             << endl;
-        setKicked(kickVotes[maxRepeat]);
-    }
+    /* Function to print Majority Element */
+    bool findMajority() 
+    { 
+        /* Find the candidate for Majority*/
+        pair<string, string> cand = findCandidate(); 
+
+        Player playCand = Player(cand.first, cand.second);
+        
+        /* Print the candidate if it is Majority*/
+        if (isMajority(playCand)) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    } 
 
     void checkCorrectResponse() // check if majority choice is right or wrong
     {
